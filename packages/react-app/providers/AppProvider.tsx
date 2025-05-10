@@ -37,12 +37,17 @@ const config = createConfig({
 
 const queryClient = new QueryClient();
 
+// Import FestifyProvider
+import { FestifyProvider } from './FestifyProvider';
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <Layout>{children}</Layout>
+          <FestifyProvider>
+            <Layout>{children}</Layout>
+          </FestifyProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

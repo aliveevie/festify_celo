@@ -89,9 +89,22 @@ export default function Home() {
                 <div className="h1">Please install Metamask and connect.</div>
             )}
             {address && (
-                <div className="h1">
-                    There you go... a canvas for your next Minipay project!
-                </div>
+                <>
+                    <div className="h1">
+                        There you go... a canvas for your next Minipay project!
+                    </div>
+                    <div className="mt-6 mb-8 flex flex-col items-center justify-center">
+                        <div className="text-2xl font-bold mb-3">Try Our New Festify App!</div>
+                        <p className="text-center mb-4 max-w-md">
+                            Create and share festival greeting cards as NFTs using our new Festify application.
+                        </p>
+                        <a href="/festify" className="no-underline">
+                            <Button className="px-8 py-6 text-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                                Launch Festify
+                            </Button>
+                        </a>
+                    </div>
+                </>
             )}
 
             <a
