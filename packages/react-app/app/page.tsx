@@ -7,6 +7,8 @@ import { Container } from "@/components/ui/container";
 import MintGreetingForm from "@/components/MintGreetingForm";
 import GreetingStats from "@/components/GreetingStats";
 import WelcomeBanner from "@/components/WelcomeBanner";
+import GreetingCardGallery from "@/components/GreetingCardGallery";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Home() {
     const {
@@ -33,37 +35,50 @@ export default function Home() {
             <Container>
                 <WelcomeBanner isConnected={!!address} />
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <MintGreetingForm />
+                <Tabs defaultValue="create" className="w-full mb-8">
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                        <TabsTrigger value="create">Create Greeting Card</TabsTrigger>
+                        <TabsTrigger value="view">View Your Cards</TabsTrigger>
+                    </TabsList>
                     
-                    <div className="flex flex-col space-y-8">
-                        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6">
-                            <h2 className="text-xl font-bold mb-2">Welcome to Festify!</h2>
-                            <p>
-                                Create and send personalized festival greeting cards as NFTs to your loved ones.
-                                Choose from different festivals, add your message, and mint your unique greeting card.
-                            </p>
+                    <TabsContent value="create">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                            <MintGreetingForm />
+                            
+                            <div className="flex flex-col space-y-8">
+                                <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6">
+                                    <h2 className="text-xl font-bold mb-2">Welcome to Festify!</h2>
+                                    <p>
+                                        Create and send personalized festival greeting cards as NFTs to your loved ones.
+                                        Choose from different festivals, add your message, and mint your unique greeting card.
+                                    </p>
+                                </div>
+                                
+                                <div className="bg-white rounded-lg p-6 border shadow-sm">
+                                    <h3 className="text-lg font-semibold mb-2">How It Works</h3>
+                                    <ol className="list-decimal list-inside space-y-2">
+                                        <li>Connect your wallet</li>
+                                        <li>Select a festival</li>
+                                        <li>Enter recipient's address</li>
+                                        <li>Write your personal message</li>
+                                        <li>Mint your greeting card as an NFT</li>
+                                    </ol>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div className="bg-white rounded-lg p-6 border shadow-sm">
-                            <h3 className="text-lg font-semibold mb-2">How It Works</h3>
-                            <ol className="list-decimal list-inside space-y-2">
-                                <li>Connect your wallet</li>
-                                <li>Select a festival</li>
-                                <li>Enter recipient's address</li>
-                                <li>Write your personal message</li>
-                                <li>Mint your greeting card as an NFT</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-                
-                {address && (
-                    <GreetingStats 
-                        sentGreetings={sentGreetings} 
-                        receivedGreetings={receivedGreetings} 
-                    />
-                )}
+                        {address && (
+                            <GreetingStats 
+                                sentGreetings={sentGreetings} 
+                                receivedGreetings={receivedGreetings} 
+                            />
+                        )}
+                    </TabsContent>
+                    
+                    <TabsContent value="view">
+                        <GreetingCardGallery />
+                    </TabsContent>
+                </Tabs>
             </Container>
         </main>
     );

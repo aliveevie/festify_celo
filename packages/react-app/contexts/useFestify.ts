@@ -9,6 +9,8 @@ import {
   parseEther,
 } from "viem";
 import { hardhat } from "../providers/hardhatChain";
+import { generateGreetingCardSVG } from "../utils/cardGenerator";
+import { utf8ToBase64, parseBase64Metadata } from "../utils/base64Utils";
 
 // Contract address for the FestivalGreetings contract - deployed with Ignition
 const FESTIFY_CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
@@ -135,12 +137,14 @@ export const useFestify = () => {
     try {
       console.log("Starting the minting process...");
       
-      // Create metadata directly without Web3.Storage
-      // For simplicity, we're using a base64 encoded JSON string
+      // Generate a beautiful SVG greeting card
+      const svgDataUrl = generateGreetingCardSVG(festival, message, senderAddress, recipient);
+      
+      // Create metadata with the SVG image
       const metadata = {
         name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
         description: message,
-        image: imageUrl || getDefaultImageForFestival(festival),
+        image: svgDataUrl, // Use the generated SVG instead of a static image
         attributes: [
           {
             trait_type: "Festival",
@@ -161,8 +165,10 @@ export const useFestify = () => {
         ]
       };
       
-      // Convert metadata to URI format
-      const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
+      console.log("Generated SVG greeting card for recipient");
+      
+      // Convert metadata to URI format using UTF-8 safe encoding
+      const metadataUri = `data:application/json;base64,${utf8ToBase64(JSON.stringify(metadata))}`;
       console.log("Metadata created:", metadata);
 
       // Check if we're on the correct network (Hardhat)
@@ -227,12 +233,15 @@ export const useFestify = () => {
       console.log("Parameters:", { recipient, metadataUri, festival, mintFee: mintFee.toString() });
 
       // Call the contract to mint the greeting card
+      // Convert senderAddress to the correct format (0x-prefixed string)
+      const formattedAddress = senderAddress as `0x${string}`;
+      
       const tx = await walletClient.writeContract({
-        address: FESTIFY_CONTRACT_ADDRESS,
+        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
         abi: FestifyABI.abi,
         functionName: "mintGreetingCard",
-        account: senderAddress,
-        args: [recipient, metadataUri, festival],
+        account: formattedAddress,
+        args: [recipient as `0x${string}`, metadataUri, festival],
         value: mintFee,
       });
       
@@ -373,16 +382,96 @@ export const useFestify = () => {
 
   // Fetch both sent and received greeting cards
   const fetchGreetingCards = async () => {
-    if (!address) {
-      await getUserAddress();
-      return;
+    if (!address) return;
+    
+    try {
+      setIsLoading(true);
+      console.log("Fetching greeting cards for address:", address);
+      
+      // Create public client
+      const publicClient = createPublicClient({
+        chain: hardhat,
+        transport: http(),
+      });
+      
+      // Create contract instance
+      const contract = getContract({
+        address: FESTIFY_CONTRACT_ADDRESS,
+        abi: FestifyABI.abi,
+        publicClient,
+      });
+      
+      // Get sent tokens
+      const sentTokensResult = await contract.read.getSentTokens([address]);
+      console.log("Sent tokens result:", sentTokensResult);
+      
+      // Get received tokens
+      const receivedTokensResult = await contract.read.getReceivedTokens([address]);
+      console.log("Received tokens result:", receivedTokensResult);
+      
+      // Process sent tokens
+      const sentTokens = Array.isArray(sentTokensResult) ? sentTokensResult : [];
+      const sentTokenDetails = await Promise.all(
+        sentTokens.map(async (tokenId) => {
+          try {
+            const tokenURI = await contract.read.tokenURI([tokenId]);
+            const festival = await contract.read.getTokenFestival([tokenId]);
+            const recipient = await contract.read.getTokenRecipient([tokenId]);
+            
+            // Parse metadata from tokenURI if it's a data URI using our safe decoder
+            const metadata = parseBase64Metadata(tokenURI);
+            
+            return {
+              tokenId: tokenId.toString(),
+              tokenURI,
+              festival,
+              recipient,
+              metadata,
+            };
+          } catch (error) {
+            console.error(`Error fetching details for sent token ${tokenId}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      // Process received tokens
+      const receivedTokens = Array.isArray(receivedTokensResult) ? receivedTokensResult : [];
+      const receivedTokenDetails = await Promise.all(
+        receivedTokens.map(async (tokenId) => {
+          try {
+            const tokenURI = await contract.read.tokenURI([tokenId]);
+            const festival = await contract.read.getTokenFestival([tokenId]);
+            const sender = await contract.read.getTokenSender([tokenId]);
+            
+            // Parse metadata from tokenURI if it's a data URI using our safe decoder
+            const metadata = parseBase64Metadata(tokenURI);
+            
+            return {
+              tokenId: tokenId.toString(),
+              tokenURI,
+              festival,
+              sender,
+              metadata,
+            };
+          } catch (error) {
+            console.error(`Error fetching details for received token ${tokenId}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out null values and set state
+      setSentGreetings(sentTokenDetails.filter(Boolean));
+      setReceivedGreetings(receivedTokenDetails.filter(Boolean));
+      
+      console.log("Sent greetings:", sentTokenDetails.filter(Boolean));
+      console.log("Received greetings:", receivedTokenDetails.filter(Boolean));
+    } catch (error) {
+      console.error("Error fetching greeting cards:", error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    const sent = await getSentGreetings();
-    const received = await getReceivedGreetings();
-    
-    setSentGreetings(sent);
-    setReceivedGreetings(received);
   };
 
   // Initialize when component mounts
