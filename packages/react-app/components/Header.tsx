@@ -3,12 +3,25 @@ import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useConnect } from "wagmi";
+import { useAccount, useConnect } from "wagmi";
 import { injected } from "wagmi/connectors";
+import { useFestify } from "@/contexts/useFestify";
 
 export default function Header() {
   const [hideConnectBtn, setHideConnectBtn] = useState(false);
   const { connect } = useConnect();
+  const { address } = useAccount();
+  const { getUserAddress } = useFestify();
+
+  // Sync the wallet address with our context
+  useEffect(() => {
+    if (address) {
+      console.log("Header: Wallet connected with address:", address);
+      // Force update the address in our context
+      window.localStorage.setItem('walletAddress', address);
+      getUserAddress();
+    }
+  }, [address, getUserAddress]);
 
   useEffect(() => {
     if (window.ethereum && window.ethereum.isMiniPay) {

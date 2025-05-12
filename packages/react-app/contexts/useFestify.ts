@@ -27,16 +27,42 @@ export const useFestify = () => {
 
   // Get user's wallet address
   const getUserAddress = async () => {
+    // First check localStorage for the address (set by Header component)
+    if (typeof window !== "undefined") {
+      const savedAddress = window.localStorage.getItem('walletAddress');
+      if (savedAddress) {
+        console.log("Using wallet address from localStorage:", savedAddress);
+        setAddress(savedAddress);
+        return savedAddress;
+      }
+    }
+    
+    // Fallback to getting address from ethereum provider
     if (typeof window !== "undefined" && window.ethereum) {
       try {
+        // First try the simpler method
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+          console.log("Detected wallet address from eth_accounts:", accounts[0]);
+          setAddress(accounts[0]);
+          // Save to localStorage for future use
+          window.localStorage.setItem('walletAddress', accounts[0]);
+          return accounts[0];
+        }
+        
+        // Fallback to viem method
         let walletClient = createWalletClient({
           transport: custom(window.ethereum),
           chain: hardhat,
         });
 
         let [address] = await walletClient.getAddresses();
-        console.log("Detected wallet address:", address);
+        console.log("Detected wallet address from viem:", address);
         setAddress(address);
+        // Save to localStorage for future use
+        if (address) {
+          window.localStorage.setItem('walletAddress', address);
+        }
         return address;
       } catch (error) {
         console.error("Error getting user address:", error);

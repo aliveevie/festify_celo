@@ -22,18 +22,37 @@ const MintGreetingForm: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   
-  // Log when address changes to help debugging and force a re-render
+  // Get wallet address directly from localStorage or provider
+  const [localWalletAddress, setLocalWalletAddress] = useState<string | null>(null);
+  
   useEffect(() => {
-    console.log("MintGreetingForm: Wallet address changed to:", address);
-    
-    // Check if wallet is connected via window.ethereum
-    const checkWalletConnection = async () => {
+    const getWalletAddress = async () => {
+      // First check localStorage
+      if (typeof window !== "undefined") {
+        const savedAddress = window.localStorage.getItem('walletAddress');
+        if (savedAddress) {
+          console.log("MintGreetingForm: Using wallet address from localStorage:", savedAddress);
+          setLocalWalletAddress(savedAddress);
+          return;
+        }
+      }
+      
+      // Then check wagmi address
+      if (address) {
+        console.log("MintGreetingForm: Using wallet address from context:", address);
+        setLocalWalletAddress(address);
+        window.localStorage.setItem('walletAddress', address);
+        return;
+      }
+      
+      // Finally check window.ethereum
       if (typeof window !== "undefined" && window.ethereum) {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          if (accounts && accounts.length > 0 && !address) {
-            console.log("Wallet detected but not in state, refreshing page...");
-            window.location.reload();
+          if (accounts && accounts.length > 0) {
+            console.log("MintGreetingForm: Using wallet address from provider:", accounts[0]);
+            setLocalWalletAddress(accounts[0]);
+            window.localStorage.setItem('walletAddress', accounts[0]);
           }
         } catch (error) {
           console.error("Error checking wallet connection:", error);
@@ -41,7 +60,7 @@ const MintGreetingForm: React.FC = () => {
       }
     };
     
-    checkWalletConnection();
+    getWalletAddress();
   }, [address]);
 
   // Handle form submission
@@ -66,27 +85,37 @@ const MintGreetingForm: React.FC = () => {
     }
     
     console.log('Minting greeting card with:', { recipient, message, festival, imageUrl });
-    console.log('Current wallet address:', address);
+    console.log('Using wallet address:', localWalletAddress || address);
     
     // Set local loading state
     setLocalLoading(true);
     
     try {
-      // Force check wallet connection one more time
-      if (typeof window !== "undefined" && window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts && accounts.length > 0) {
-          console.log("Wallet is connected with account:", accounts[0]);
-          // Use the account from ethereum provider directly if needed
-          if (!address) {
-            console.log("Using detected account instead of context address");
-            // We'll continue with the form submission even if context address is not set
+      // Check if we have a wallet address from any source
+      if (!localWalletAddress && !address) {
+        // Try one more time to get the wallet address
+        if (typeof window !== "undefined") {
+          // Check localStorage
+          const savedAddress = window.localStorage.getItem('walletAddress');
+          if (savedAddress) {
+            console.log("Form submission: Using wallet address from localStorage:", savedAddress);
+            setLocalWalletAddress(savedAddress);
+          } else if (window.ethereum) {
+            // Check provider
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts && accounts.length > 0) {
+              console.log("Form submission: Using wallet address from provider:", accounts[0]);
+              setLocalWalletAddress(accounts[0]);
+              window.localStorage.setItem('walletAddress', accounts[0]);
+            } else {
+              throw new Error('Please connect your wallet first. Click the Connect Wallet button in the top right corner.');
+            }
+          } else {
+            throw new Error('Ethereum provider not detected. Please install MetaMask or another wallet.');
           }
         } else {
           throw new Error('Please connect your wallet first. Click the Connect Wallet button in the top right corner.');
         }
-      } else {
-        throw new Error('Ethereum provider not detected. Please install MetaMask or another wallet.');
       }
       
       // Validate recipient address format
@@ -94,8 +123,16 @@ const MintGreetingForm: React.FC = () => {
         throw new Error('Invalid recipient address. Please enter a valid Ethereum address.');
       }
       
+      // Use the wallet address we found
+      const effectiveAddress = localWalletAddress || address || window.localStorage.getItem('walletAddress');
+      console.log("Proceeding with minting using address:", effectiveAddress);
+      
+      // If we have an address in localStorage but not in context, force update the context
+      if (effectiveAddress && !address) {
+        window.localStorage.setItem('walletAddress', effectiveAddress);
+      }
+      
       // Call the mintGreetingCard function from useFestify context
-      console.log("Proceeding with minting using address:", address || "detected from provider");
       const receipt = await mintGreetingCard(recipient, message, festival, imageUrl);
       
       console.log('Transaction receipt:', receipt);
