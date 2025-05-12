@@ -165,6 +165,54 @@ export const useFestify = () => {
       const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
       console.log("Metadata created:", metadata);
 
+      // Check if we're on the correct network (Hardhat)
+      if (typeof window !== "undefined" && window.ethereum) {
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        const currentChainId = parseInt(chainId, 16);
+        console.log("useFestify: Current chain ID before minting:", currentChainId);
+        
+        if (currentChainId !== 31337) {
+          console.log("Not on Hardhat network, attempting to switch...");
+          try {
+            // Try to switch to Hardhat network
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x7A69' }], // 31337 in hex
+            });
+            console.log("Successfully switched to Hardhat network");
+          } catch (switchError: any) {
+            // This error code indicates that the chain has not been added to MetaMask
+            if (switchError.code === 4902) {
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [
+                    {
+                      chainId: '0x7A69', // 31337 in hex
+                      chainName: 'Hardhat Local',
+                      nativeCurrency: {
+                        name: 'Ethereum',
+                        symbol: 'ETH',
+                        decimals: 18
+                      },
+                      rpcUrls: ['http://127.0.0.1:8545'],
+                      blockExplorerUrls: []
+                    },
+                  ],
+                });
+                console.log("Added Hardhat network to wallet");
+              } catch (addError) {
+                console.error("Error adding Hardhat network:", addError);
+                throw new Error('Failed to add Hardhat network to your wallet. Please add it manually.');
+              }
+            } else {
+              console.error("Error switching to Hardhat network:", switchError);
+              throw new Error('Please switch to the Hardhat network (Chain ID: 31337) in your wallet to mint greeting cards.');
+            }
+          }
+        }
+      }
+      
       // Get wallet client
       let walletClient = createWalletClient({
         transport: custom(window.ethereum),

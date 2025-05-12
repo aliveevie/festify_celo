@@ -132,6 +132,27 @@ const MintGreetingForm: React.FC = () => {
         window.localStorage.setItem('walletAddress', effectiveAddress);
       }
       
+      // Check if we're on the correct network (Hardhat)
+      if (typeof window !== "undefined" && window.ethereum) {
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        const currentChainId = parseInt(chainId, 16);
+        console.log("Current chain ID before minting:", currentChainId);
+        
+        if (currentChainId !== 31337) {
+          // Not on Hardhat network, try to switch
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x7A69' }], // 31337 in hex
+            });
+            console.log("Successfully switched to Hardhat network");
+          } catch (switchError: any) {
+            console.error("Failed to switch to Hardhat network:", switchError);
+            throw new Error('Please switch to the Hardhat network (Chain ID: 31337) in your wallet to mint greeting cards.');
+          }
+        }
+      }
+      
       // Call the mintGreetingCard function from useFestify context
       const receipt = await mintGreetingCard(recipient, message, festival, imageUrl);
       
