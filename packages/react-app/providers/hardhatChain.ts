@@ -1,9 +1,8 @@
-import { Chain } from 'viem';
+import { defineChain } from 'viem';
 
-export const hardhat: Chain = {
+export const hardhat = defineChain({
   id: 31337,
   name: 'Hardhat',
-  network: 'hardhat',
   nativeCurrency: {
     decimals: 18,
     name: 'Ether',
@@ -21,4 +20,4 @@ export const hardhat: Chain = {
     default: { name: 'Hardhat Explorer', url: 'http://localhost:8545' },
   },
   testnet: true,
-};
+});

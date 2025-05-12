@@ -42,6 +42,8 @@ const MintGreetingForm: React.FC = () => {
       return;
     }
     
+    console.log('Minting greeting card with:', { recipient, message, festival, imageUrl });
+    
     try {
       // Call the mintGreetingCard function from the useFestify context
       await mintGreetingCard(recipient, message, festival, imageUrl);
@@ -75,6 +77,7 @@ const MintGreetingForm: React.FC = () => {
       return;
     }
     
+    console.log('Moving to next step:', step + 1);
     setError('');
     setStep(step + 1);
   };
@@ -85,7 +88,7 @@ const MintGreetingForm: React.FC = () => {
     setStep(step - 1);
   };
 
-  // Check if the user is connected
+  // Show wallet connection prompt if not connected
   if (!address) {
     return (
       <Card>
@@ -95,8 +98,16 @@ const MintGreetingForm: React.FC = () => {
             Connect your wallet to create and send festival greeting cards as NFTs
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-center py-8">
-          <p className="text-gray-500">Please connect your wallet to continue</p>
+        <CardContent>
+          <div className="text-center py-6">
+            <div className="mb-4 text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <p className="text-gray-600 mb-2">Please connect your wallet to continue</p>
+            <p className="text-sm text-gray-500">You need to connect a wallet to mint greeting cards</p>
+          </div>
         </CardContent>
       </Card>
     );

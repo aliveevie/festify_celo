@@ -36,20 +36,43 @@ const WelcomeBanner: React.FC<WelcomeBannerProps> = ({ isConnected }) => {
                     userSelect: 'none',
                   },
                 })}
-                className="flex justify-center"
+                className="flex flex-col items-center gap-3"
               >
                 {(() => {
                   if (!mounted || !account || !chain) {
                     return (
-                      <Button 
-                        onClick={openConnectModal} 
-                        size="lg"
-                        className="bg-white text-purple-600 hover:bg-gray-100"
-                      >
-                        Connect Wallet
-                      </Button>
+                      <>
+                        <Button 
+                          onClick={openConnectModal} 
+                          title="Connect Wallet"
+                          className="bg-white text-purple-600 hover:bg-gray-100 font-bold px-8 py-6 text-lg animate-pulse"
+                        >
+                          Connect Wallet
+                        </Button>
+                        <p className="text-sm mt-2 text-white/80">
+                          You need to connect your wallet to use Festify
+                        </p>
+                      </>
                     );
                   }
+                  
+                  if (chain && chain.id !== 31337) {
+                    return (
+                      <>
+                        <Button 
+                          onClick={openChainModal} 
+                          title="Switch to Celo Network"
+                          className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold px-8 py-6 text-lg"
+                        >
+                          Switch to Hardhat Network
+                        </Button>
+                        <p className="text-sm mt-2 text-white/80">
+                          Festify works on the Hardhat local network
+                        </p>
+                      </>
+                    );
+                  }
+                  
                   return null;
                 })()}
               </div>
