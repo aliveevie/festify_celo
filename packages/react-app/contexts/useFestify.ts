@@ -10,8 +10,8 @@ import {
 } from "viem";
 import { hardhat } from "../providers/hardhatChain";
 
-// Contract address for the FestivalGreetings contract - replace with your deployed contract address
-const FESTIFY_CONTRACT_ADDRESS = "0xE8F4699baba6C86DA9729b1B0a1DA1Bd4136eFeF";
+// Contract address for the FestivalGreetings contract - deployed with Ignition
+const FESTIFY_CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 // Initialize public client for Hardhat
 const publicClient = createPublicClient({
@@ -86,7 +86,22 @@ export const useFestify = () => {
     festival: string,
     imageUrl?: string
   ) => {
-    if (!address) {
+    // Check if wallet is connected and get the address if needed
+    let senderAddress = address;
+    if (!senderAddress && typeof window !== "undefined" && window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+          senderAddress = accounts[0];
+          setAddress(senderAddress); // Update the state
+          console.log("Using detected wallet address:", senderAddress);
+        }
+      } catch (error) {
+        console.error("Error getting accounts:", error);
+      }
+    }
+    
+    if (!senderAddress) {
       throw new Error("Please connect your wallet first");
     }
     
@@ -107,7 +122,7 @@ export const useFestify = () => {
           },
           {
             trait_type: "Sender",
-            value: address
+            value: senderAddress
           },
           {
             trait_type: "Recipient",
@@ -142,7 +157,7 @@ export const useFestify = () => {
         address: FESTIFY_CONTRACT_ADDRESS,
         abi: FestifyABI.abi,
         functionName: "mintGreetingCard",
-        account: address,
+        account: senderAddress,
         args: [recipient, metadataUri, festival],
         value: mintFee,
       });
@@ -294,19 +309,6 @@ export const useFestify = () => {
     
     setSentGreetings(sent);
     setReceivedGreetings(received);
-  };
-
-  // Helper function to get default image for a festival
-  const getDefaultImageForFestival = (festival: string) => {
-    const festivalImages = {
-      christmas: 'https://ipfs.io/ipfs/QmNtxfy9Mk8qLsdGnraHGk5XDX4MzpQzNz6KWHBpNquGts',
-      newyear: 'https://ipfs.io/ipfs/QmYqA8GsxbXeWoJxH2RBuAyFRNqyBJCJb4kByuYBtVCRsf',
-      eid: 'https://ipfs.io/ipfs/QmTcM5VyR7SLcBZJ8Qrv8KbRfo2CyYZMXfM7Rz3XDmhG3H',
-      sallah: 'https://ipfs.io/ipfs/QmXfnZpQy4U4UgcVwDMgVCTQxCVKLXBgX5Ym4xLSk9wGK1'
-    };
-    
-    return festivalImages[festival as keyof typeof festivalImages] || 
-           'https://ipfs.io/ipfs/QmVgAZjazqRrETC9TZzQVNYA25RAEKoMLrEGvNSCxYcEgZ';
   };
 
   // Initialize when component mounts

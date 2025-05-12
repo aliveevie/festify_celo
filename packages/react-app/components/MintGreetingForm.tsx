@@ -22,9 +22,26 @@ const MintGreetingForm: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   
-  // Log when address changes to help debugging
+  // Log when address changes to help debugging and force a re-render
   useEffect(() => {
     console.log("MintGreetingForm: Wallet address changed to:", address);
+    
+    // Check if wallet is connected via window.ethereum
+    const checkWalletConnection = async () => {
+      if (typeof window !== "undefined" && window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0 && !address) {
+            console.log("Wallet detected but not in state, refreshing page...");
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error("Error checking wallet connection:", error);
+        }
+      }
+    };
+    
+    checkWalletConnection();
   }, [address]);
 
   // Handle form submission
@@ -55,41 +72,35 @@ const MintGreetingForm: React.FC = () => {
     setLocalLoading(true);
     
     try {
-      // FORCE MINT REGARDLESS OF WALLET CONNECTION
-      // This is a workaround for wallet connection issues
-      const senderAddress = address || '0xE8F4699baba6C86DA9729b1B0a1DA1Bd4136eFeF';
-      
-      // Create metadata directly here
-      const metadata = {
-        name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
-        description: message,
-        image: imageUrl || getDefaultImageForFestival(festival),
-        attributes: [
-          {
-            trait_type: "Festival",
-            value: festival
-          },
-          {
-            trait_type: "Sender",
-            value: senderAddress
-          },
-          {
-            trait_type: "Recipient",
-            value: recipient
-          },
-          {
-            trait_type: "Created",
-            value: new Date().toISOString()
+      // Force check wallet connection one more time
+      if (typeof window !== "undefined" && window.ethereum) {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+          console.log("Wallet is connected with account:", accounts[0]);
+          // Use the account from ethereum provider directly if needed
+          if (!address) {
+            console.log("Using detected account instead of context address");
+            // We'll continue with the form submission even if context address is not set
           }
-        ]
-      };
+        } else {
+          throw new Error('Please connect your wallet first. Click the Connect Wallet button in the top right corner.');
+        }
+      } else {
+        throw new Error('Ethereum provider not detected. Please install MetaMask or another wallet.');
+      }
       
-      console.log('Created metadata:', metadata);
+      // Validate recipient address format
+      if (!recipient.startsWith('0x') || recipient.length !== 42) {
+        throw new Error('Invalid recipient address. Please enter a valid Ethereum address.');
+      }
       
-      // Simulate successful minting
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the mintGreetingCard function from useFestify context
+      console.log("Proceeding with minting using address:", address || "detected from provider");
+      const receipt = await mintGreetingCard(recipient, message, festival, imageUrl);
       
-      // Reset form and show success message
+      console.log('Transaction receipt:', receipt);
+      
+      // Reset form and show success message with transaction hash
       setSuccess(true);
       setStep(1);
       setRecipient('');
@@ -97,30 +108,27 @@ const MintGreetingForm: React.FC = () => {
       setFestival('');
       setImageUrl('');
       
-      // Clear success message after 5 seconds
+      // Clear success message after 8 seconds
       setTimeout(() => {
         setSuccess(false);
-      }, 5000);
+      }, 8000);
     } catch (error: any) {
       console.error('Error in form submission:', error);
-      setError(error.message || 'Failed to mint greeting card');
+      
+      // Handle specific error messages
+      if (error.message.includes('insufficient funds')) {
+        setError('Insufficient funds to pay for the mint fee. Please make sure you have enough ETH.');
+      } else if (error.message.includes('user rejected')) {
+        setError('Transaction was rejected. Please try again.');
+      } else {
+        setError(error.message || 'Failed to mint greeting card');
+      }
     } finally {
       setLocalLoading(false);
     }
   };
   
-  // Helper function to get default image for a festival
-  const getDefaultImageForFestival = (festival: string) => {
-    const festivalImages = {
-      christmas: 'https://ipfs.io/ipfs/QmNtxfy9Mk8qLsdGnraHGk5XDX4MzpQzNz6KWHBpNquGts',
-      newyear: 'https://ipfs.io/ipfs/QmYqA8GsxbXeWoJxH2RBuAyFRNqyBJCJb4kByuYBtVCRsf',
-      eid: 'https://ipfs.io/ipfs/QmTcM5VyR7SLcBZJ8Qrv8KbRfo2CyYZMXfM7Rz3XDmhG3H',
-      sallah: 'https://ipfs.io/ipfs/QmXfnZpQy4U4UgcVwDMgVCTQxCVKLXBgX5Ym4xLSk9wGK1'
-    };
-    
-    return festivalImages[festival as keyof typeof festivalImages] || 
-           'https://ipfs.io/ipfs/QmVgAZjazqRrETC9TZzQVNYA25RAEKoMLrEGvNSCxYcEgZ';
-  };
+  // Note: Using getDefaultImageForFestival from useFestify context
 
   // Handle next step
   const handleNextStep = () => {
@@ -280,7 +288,7 @@ const MintGreetingForm: React.FC = () => {
                 Next
               </Button>
             ) : (
-              <Button type="submit" title="Mint Greeting Card" disabled={isLoading || localLoading}>
+              <Button type="submit" title="Mint Greeting Card" disabled={isLoading || localLoading} onClick={() => {}}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
