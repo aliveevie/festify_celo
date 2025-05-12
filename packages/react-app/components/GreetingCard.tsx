@@ -1,7 +1,4 @@
 import React from 'react';
-import Image from 'next/image';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { truncateAddress } from '@/utils/addressUtils';
 
 interface GreetingCardProps {
   tokenId: string;
@@ -10,7 +7,6 @@ interface GreetingCardProps {
   sender: string;
   recipient: string;
   imageUrl: string;
-  timestamp: string;
 }
 
 const GreetingCard: React.FC<GreetingCardProps> = ({
@@ -20,59 +16,39 @@ const GreetingCard: React.FC<GreetingCardProps> = ({
   sender,
   recipient,
   imageUrl,
-  timestamp,
 }) => {
-  // Format date for better display
-  const formattedDate = new Date(timestamp).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  // Truncate address for display
+  const truncateAddress = (address: string) => {
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
 
   // Capitalize festival name
   const capitalizedFestival = festival.charAt(0).toUpperCase() + festival.slice(1);
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-lg">
-      <div className="relative h-48 w-full overflow-hidden">
-        <Image
-          src={imageUrl}
-          alt={`${capitalizedFestival} Greeting Card`}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-2 left-2 rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white">
-          {capitalizedFestival}
-        </div>
+    <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all">
+      <div className="h-48 w-full relative bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+        <h3 className="text-2xl font-bold text-white">{capitalizedFestival}</h3>
       </div>
       
-      <CardHeader className="p-4 pb-2">
-        <CardTitle className="text-xl">{capitalizedFestival} Greeting</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          Token ID: {tokenId}
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent className="p-4 pt-2">
+      <div className="p-4">
+        <h3 className="text-xl font-semibold mb-1">{capitalizedFestival} Greeting</h3>
+        <p className="text-sm text-gray-500 mb-3">Token ID: {tokenId}</p>
+        
         <p className="mb-4 text-sm italic">&ldquo;{message}&rdquo;</p>
+        
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">From:</span>
+            <span className="text-gray-500">From:</span>
             <span className="font-medium">{truncateAddress(sender)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">To:</span>
+            <span className="text-gray-500">To:</span>
             <span className="font-medium">{truncateAddress(recipient)}</span>
           </div>
         </div>
-      </CardContent>
-      
-      <CardFooter className="border-t p-4 text-xs text-muted-foreground">
-        Created on {formattedDate}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 };
 

@@ -1,34 +1,62 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 interface WelcomeBannerProps {
-  onGetStarted: () => void;
+  isConnected: boolean;
 }
 
-const WelcomeBanner: React.FC<WelcomeBannerProps> = ({ onGetStarted }) => {
+const WelcomeBanner: React.FC<WelcomeBannerProps> = ({ isConnected }) => {
+  if (isConnected) return null;
+
   return (
-    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-purple-700 via-blue-600 to-indigo-700 p-8 shadow-xl">
-      <div className="absolute inset-0 bg-grid-white/10 bg-[size:20px_20px] opacity-10"></div>
-      <div className="relative z-10 flex flex-col items-center text-center text-white">
-        <h1 className="mb-2 text-4xl font-bold tracking-tight sm:text-5xl">
-          Welcome to Festify
-        </h1>
-        <p className="mb-6 max-w-2xl text-lg text-white/90">
-          Create and share personalized festival greeting cards as NFTs on the blockchain.
-          Send unique digital greetings for Christmas, New Year, Eid, Sallah, and more!
+    <div className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6 mb-8">
+      <div className="max-w-3xl mx-auto text-center">
+        <h2 className="text-2xl font-bold mb-2">Welcome to Festify!</h2>
+        <p className="mb-6">
+          Create and send personalized festival greeting cards as NFTs to your loved ones.
+          Connect your wallet to get started.
         </p>
-        <Button
-          onClick={onGetStarted}
-          size="lg"
-          className="bg-white px-8 text-lg font-semibold text-purple-700 hover:bg-white/90"
-        >
-          Get Started
-        </Button>
+        <ConnectButton.Custom>
+          {({
+            account,
+            chain,
+            openAccountModal,
+            openChainModal,
+            openConnectModal,
+            mounted,
+          }) => {
+            return (
+              <div
+                {...(!mounted && {
+                  'aria-hidden': true,
+                  'style': {
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  },
+                })}
+                className="flex justify-center"
+              >
+                {(() => {
+                  if (!mounted || !account || !chain) {
+                    return (
+                      <Button 
+                        onClick={openConnectModal} 
+                        size="lg"
+                        className="bg-white text-purple-600 hover:bg-gray-100"
+                      >
+                        Connect Wallet
+                      </Button>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            );
+          }}
+        </ConnectButton.Custom>
       </div>
-      
-      {/* Decorative elements */}
-      <div className="absolute -top-16 -right-16 h-64 w-64 rounded-full bg-purple-500/20 blur-3xl"></div>
-      <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl"></div>
     </div>
   );
 };

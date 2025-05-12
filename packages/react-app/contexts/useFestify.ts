@@ -8,38 +8,22 @@ import {
   http,
   parseEther,
 } from "viem";
-import { celoAlfajores } from "viem/chains";
-import { initializeWeb3Storage, createAndUploadMetadata } from "../utils/web3Storage";
+import { hardhat } from "../providers/hardhatChain";
 
-// Contract address for the FestivalGreetings contract
-const FESTIFY_CONTRACT_ADDRESS = "0xE8F4699baba6C86DA9729b1B0a1DA1Bd4136eFeF"; // Replace with actual address
+// Contract address for the FestivalGreetings contract - replace with your deployed contract address
+const FESTIFY_CONTRACT_ADDRESS = "0xE8F4699baba6C86DA9729b1B0a1DA1Bd4136eFeF";
 
-// Initialize public client
+// Initialize public client for Hardhat
 const publicClient = createPublicClient({
-  chain: celoAlfajores,
+  chain: hardhat,
   transport: http(),
 });
 
 export const useFestify = () => {
   const [address, setAddress] = useState<string | null>(null);
-  const [isStorageInitialized, setIsStorageInitialized] = useState(false);
   const [sentGreetings, setSentGreetings] = useState<any[]>([]);
   const [receivedGreetings, setReceivedGreetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Initialize Web3.Storage on component mount
-  useEffect(() => {
-    const initStorage = async () => {
-      try {
-        const initialized = await initializeWeb3Storage();
-        setIsStorageInitialized(initialized);
-      } catch (error) {
-        console.error("Failed to initialize Web3.Storage:", error);
-      }
-    };
-    
-    initStorage();
-  }, []);
 
   // Get user's wallet address
   const getUserAddress = async () => {
@@ -47,7 +31,7 @@ export const useFestify = () => {
       try {
         let walletClient = createWalletClient({
           transport: custom(window.ethereum),
-          chain: celoAlfajores,
+          chain: hardhat,
         });
 
         let [address] = await walletClient.getAddresses();
@@ -66,32 +50,47 @@ export const useFestify = () => {
     recipient: string,
     message: string,
     festival: string,
-    sender: string,
     imageUrl?: string
   ) => {
+    if (!address) {
+      throw new Error("Please connect your wallet first");
+    }
+    
     setIsLoading(true);
     try {
-      // Ensure Web3.Storage is initialized
-      if (!isStorageInitialized) {
-        await initializeWeb3Storage();
-      }
+      // Create metadata for the greeting card
+      const metadata = {
+        name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
+        description: message,
+        image: imageUrl || getDefaultImageForFestival(festival),
+        attributes: [
+          {
+            trait_type: "Festival",
+            value: festival
+          },
+          {
+            trait_type: "Sender",
+            value: address
+          },
+          {
+            trait_type: "Recipient",
+            value: recipient
+          },
+          {
+            trait_type: "Created",
+            value: new Date().toISOString()
+          }
+        ]
+      };
 
-      // Create and upload metadata to IPFS
-      const metadataUrl = await createAndUploadMetadata(
-        message,
-        festival,
-        sender,
-        recipient,
-        imageUrl
-      );
+      // Convert metadata to URI format (in a real app, this would be uploaded to IPFS)
+      const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
 
       // Get wallet client
       let walletClient = createWalletClient({
         transport: custom(window.ethereum),
-        chain: celoAlfajores,
+        chain: hardhat,
       });
-
-      let [senderAddress] = await walletClient.getAddresses();
 
       // Calculate mint fee (0.01 ETH)
       const mintFee = parseEther("0.01");
@@ -101,8 +100,8 @@ export const useFestify = () => {
         address: FESTIFY_CONTRACT_ADDRESS,
         abi: FestifyABI.abi,
         functionName: "mintGreetingCard",
-        account: senderAddress,
-        args: [recipient, metadataUrl, festival],
+        account: address,
+        args: [recipient, metadataUri, festival],
         value: mintFee,
       });
 
@@ -124,10 +123,9 @@ export const useFestify = () => {
   };
 
   // Fetch greeting cards sent by the user
-  const getSentGreetings = async (userAddress?: string) => {
+  const getSentGreetings = async () => {
     try {
-      const addr = userAddress || address;
-      if (!addr) return [];
+      if (!address) return [];
 
       const festifyContract = getContract({
         abi: FestifyABI.abi,
@@ -136,7 +134,7 @@ export const useFestify = () => {
       });
 
       // Get token IDs sent by the user
-      const tokenIds = await festifyContract.read.getSentGreetings([addr]);
+      const tokenIds = await festifyContract.read.getSentGreetings([address]) as bigint[];
       
       // Get details for each token
       const greetings = await Promise.all(
@@ -145,15 +143,16 @@ export const useFestify = () => {
           const festival = await festifyContract.read.getGreetingFestival([tokenId]);
           const recipient = await festifyContract.read.ownerOf([tokenId]);
           
-          // Fetch metadata from IPFS
+          // Parse metadata from data URI
           let metadata = null;
           try {
-            // Convert IPFS URI to HTTP URL for fetching
-            const ipfsUrl = (tokenURI as string).replace("ipfs://", "https://ipfs.io/ipfs/");
-            const response = await fetch(ipfsUrl);
-            metadata = await response.json();
+            if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
+              const base64Data = tokenURI.replace('data:application/json;base64,', '');
+              const jsonString = atob(base64Data);
+              metadata = JSON.parse(jsonString);
+            }
           } catch (error) {
-            console.error("Error fetching metadata:", error);
+            console.error("Error parsing metadata:", error);
           }
           
           return {
@@ -174,10 +173,9 @@ export const useFestify = () => {
   };
 
   // Fetch greeting cards received by the user
-  const getReceivedGreetings = async (userAddress?: string) => {
+  const getReceivedGreetings = async () => {
     try {
-      const addr = userAddress || address;
-      if (!addr) return [];
+      if (!address) return [];
 
       const festifyContract = getContract({
         abi: FestifyABI.abi,
@@ -186,7 +184,7 @@ export const useFestify = () => {
       });
 
       // Get token IDs received by the user
-      const tokenIds = await festifyContract.read.getReceivedGreetings([addr]);
+      const tokenIds = await festifyContract.read.getReceivedGreetings([address]) as bigint[];
       
       // Get details for each token
       const greetings = await Promise.all(
@@ -195,15 +193,16 @@ export const useFestify = () => {
           const festival = await festifyContract.read.getGreetingFestival([tokenId]);
           const sender = await festifyContract.read.getGreetingSender([tokenId]);
           
-          // Fetch metadata from IPFS
+          // Parse metadata from data URI
           let metadata = null;
           try {
-            // Convert IPFS URI to HTTP URL for fetching
-            const ipfsUrl = (tokenURI as string).replace("ipfs://", "https://ipfs.io/ipfs/");
-            const response = await fetch(ipfsUrl);
-            metadata = await response.json();
+            if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
+              const base64Data = tokenURI.replace('data:application/json;base64,', '');
+              const jsonString = atob(base64Data);
+              metadata = JSON.parse(jsonString);
+            }
           } catch (error) {
-            console.error("Error fetching metadata:", error);
+            console.error("Error parsing metadata:", error);
           }
           
           return {
@@ -236,6 +235,31 @@ export const useFestify = () => {
     setSentGreetings(sent);
     setReceivedGreetings(received);
   };
+
+  // Helper function to get default image for a festival
+  const getDefaultImageForFestival = (festival: string) => {
+    const festivalImages = {
+      christmas: 'https://ipfs.io/ipfs/QmNtxfy9Mk8qLsdGnraHGk5XDX4MzpQzNz6KWHBpNquGts',
+      newyear: 'https://ipfs.io/ipfs/QmYqA8GsxbXeWoJxH2RBuAyFRNqyBJCJb4kByuYBtVCRsf',
+      eid: 'https://ipfs.io/ipfs/QmTcM5VyR7SLcBZJ8Qrv8KbRfo2CyYZMXfM7Rz3XDmhG3H',
+      sallah: 'https://ipfs.io/ipfs/QmXfnZpQy4U4UgcVwDMgVCTQxCVKLXBgX5Ym4xLSk9wGK1'
+    };
+    
+    return festivalImages[festival as keyof typeof festivalImages] || 
+           'https://ipfs.io/ipfs/QmVgAZjazqRrETC9TZzQVNYA25RAEKoMLrEGvNSCxYcEgZ';
+  };
+
+  // Initialize when component mounts
+  useEffect(() => {
+    getUserAddress();
+  }, []);
+
+  // Fetch greeting cards when address changes
+  useEffect(() => {
+    if (address) {
+      fetchGreetingCards();
+    }
+  }, [address]);
 
   return {
     address,

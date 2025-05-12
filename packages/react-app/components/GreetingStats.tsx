@@ -1,74 +1,78 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import GreetingCard from './GreetingCard';
 
 interface GreetingStatsProps {
-  sentCount: number;
-  receivedCount: number;
-  festivalCounts: Record<string, number>;
+  sentGreetings: any[];
+  receivedGreetings: any[];
 }
 
-const GreetingStats: React.FC<GreetingStatsProps> = ({
-  sentCount,
-  receivedCount,
-  festivalCounts,
-}) => {
-  // Calculate total greetings
-  const totalCount = sentCount + receivedCount;
-  
-  // Get the most popular festival
-  let mostPopularFestival = 'None';
-  let maxCount = 0;
-  
-  Object.entries(festivalCounts).forEach(([festival, count]) => {
-    if (count > maxCount) {
-      maxCount = count;
-      mostPopularFestival = festival.charAt(0).toUpperCase() + festival.slice(1);
-    }
-  });
-
+const GreetingStats: React.FC<GreetingStatsProps> = ({ sentGreetings, receivedGreetings }) => {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="w-full">
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Total Greetings
-          </CardTitle>
+        <CardHeader>
+          <CardTitle>Your Festify Greetings</CardTitle>
+          <CardDescription>
+            View all your sent and received festival greeting cards
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{totalCount}</div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Sent Greetings
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{sentCount}</div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Received Greetings
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{receivedCount}</div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Most Popular Festival
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{mostPopularFestival}</div>
+          <Tabs defaultValue="sent" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="sent">
+                Sent ({sentGreetings.length})
+              </TabsTrigger>
+              <TabsTrigger value="received">
+                Received ({receivedGreetings.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="sent" className="mt-4">
+              {sentGreetings.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  You haven't sent any greeting cards yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sentGreetings.map((greeting) => (
+                    <GreetingCard
+                      key={greeting.tokenId}
+                      tokenId={greeting.tokenId}
+                      festival={greeting.festival}
+                      message={greeting.metadata?.description || 'No message'}
+                      sender={greeting.metadata?.attributes?.[1]?.value || ''}
+                      recipient={greeting.recipient}
+                      imageUrl={greeting.metadata?.image || ''}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="received" className="mt-4">
+              {receivedGreetings.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  You haven't received any greeting cards yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {receivedGreetings.map((greeting) => (
+                    <GreetingCard
+                      key={greeting.tokenId}
+                      tokenId={greeting.tokenId}
+                      festival={greeting.festival}
+                      message={greeting.metadata?.description || 'No message'}
+                      sender={greeting.sender}
+                      recipient={greeting.metadata?.attributes?.[2]?.value || ''}
+                      imageUrl={greeting.metadata?.image || ''}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
