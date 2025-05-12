@@ -30,9 +30,24 @@ const GreetingCardGallery: React.FC = () => {
   
   useEffect(() => {
     if (address) {
+      console.log('GreetingCardGallery: Fetching cards for address:', address);
       fetchGreetingCards();
     }
   }, [address, fetchGreetingCards]);
+  
+  // Debug information
+  useEffect(() => {
+    console.log('GreetingCardGallery: Sent greetings count:', sentGreetings.length);
+    console.log('GreetingCardGallery: Received greetings count:', receivedGreetings.length);
+    
+    if (sentGreetings.length > 0) {
+      console.log('GreetingCardGallery: Sample sent greeting:', sentGreetings[0]);
+    }
+    
+    if (receivedGreetings.length > 0) {
+      console.log('GreetingCardGallery: Sample received greeting:', receivedGreetings[0]);
+    }
+  }, [sentGreetings, receivedGreetings]);
   
   const renderGreetingCard = (card: GreetingCard) => {
     // Extract message from metadata description
@@ -129,11 +144,24 @@ const GreetingCardGallery: React.FC = () => {
             </div>
           ) : receivedGreetings.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {receivedGreetings.map(renderGreetingCard)}
+              {receivedGreetings.map((card, index) => (
+                <div key={`received-${card.tokenId || index}`}>
+                  {renderGreetingCard(card)}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="text-center p-8 bg-gray-50 rounded-lg">
               <p className="text-gray-500">You haven't received any greeting cards yet</p>
+              <div className="mt-4 p-4 border border-dashed border-gray-300 rounded-lg">
+                <h3 className="font-medium text-gray-700 mb-2">How to Receive Cards</h3>
+                <p className="text-gray-600 text-sm mb-2">To receive greeting cards:</p>
+                <ol className="list-decimal list-inside text-sm text-gray-600">
+                  <li>Someone must mint a card with your wallet address as the recipient</li>
+                  <li>The card will automatically appear in your "Received" tab</li>
+                  <li>You can view the card details and message here</li>
+                </ol>
+              </div>
             </div>
           )}
         </TabsContent>
@@ -146,12 +174,26 @@ const GreetingCardGallery: React.FC = () => {
             </div>
           ) : sentGreetings.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sentGreetings.map(renderGreetingCard)}
+              {sentGreetings.map((card, index) => (
+                <div key={`sent-${card.tokenId || index}`}>
+                  {renderGreetingCard(card)}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="text-center p-8 bg-gray-50 rounded-lg">
               <p className="text-gray-500">You haven't sent any greeting cards yet</p>
-              <Button className="mt-4" onClick={() => window.location.href = '/'}>
+              <div className="mt-4 p-4 border border-dashed border-gray-300 rounded-lg mb-4">
+                <h3 className="font-medium text-gray-700 mb-2">How to Send Cards</h3>
+                <p className="text-gray-600 text-sm mb-2">To send greeting cards:</p>
+                <ol className="list-decimal list-inside text-sm text-gray-600">
+                  <li>Go to the home page and fill out the greeting card form</li>
+                  <li>Enter the recipient's wallet address</li>
+                  <li>Write a personal message and select a festival</li>
+                  <li>Click "Mint Greeting Card" to send it</li>
+                </ol>
+              </div>
+              <Button className="mt-2" onClick={() => window.location.href = '/'}>
                 Create a Greeting Card
               </Button>
             </div>

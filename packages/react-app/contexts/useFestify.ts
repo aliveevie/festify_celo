@@ -7,6 +7,8 @@ import {
   getContract,
   http,
   parseEther,
+  PublicClient,
+  GetContractReturnType,
 } from "viem";
 import { hardhat } from "../providers/hardhatChain";
 import { generateGreetingCardSVG } from "../utils/cardGenerator";
@@ -19,126 +21,115 @@ const FESTIFY_CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const publicClient = createPublicClient({
   chain: hardhat,
   transport: http(),
-});
+}) as PublicClient;
+
+// Type for our contract
+type FestifyContract = GetContractReturnType<typeof FestifyABI.abi, PublicClient>;
 
 export const useFestify = () => {
   const [address, setAddress] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [sentGreetings, setSentGreetings] = useState<any[]>([]);
   const [receivedGreetings, setReceivedGreetings] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+
+  // Default festival images
+  const getDefaultImageForFestival = (festival: string): string => {
+    const festivalMap: Record<string, string> = {
+      christmas: "https://ipfs.io/ipfs/QmNtxfy9Mk8qLsdGnraHGk5XDX4MzpQzNz6KWHBpNquGts",
+      newyear: "https://ipfs.io/ipfs/QmYqA8GsxbXeWoJxH2RBuAyFRNqyBJCJb4kByuYBtVCRsf",
+      eid: "https://ipfs.io/ipfs/QmTcM5VyR7SLcBZJ8Qrv8KbRfo2CyYZMXfM7Rz3XDmhG3H",
+      sallah: "https://ipfs.io/ipfs/QmXfnZpQy4U4UgcVwDMgVCTQxCVKLXBgX5Ym4xLSk9wGK1",
+    };
+    return festivalMap[festival] || festivalMap.newyear;
+  };
 
   // Get user's wallet address
   const getUserAddress = async () => {
-    // First check localStorage for the address (set by Header component)
-    if (typeof window !== "undefined") {
-      const savedAddress = window.localStorage.getItem('walletAddress');
-      if (savedAddress) {
-        console.log("Using wallet address from localStorage:", savedAddress);
-        setAddress(savedAddress);
-        return savedAddress;
+    try {
+      let walletAddress = null;
+      
+      // Try to get address from localStorage first
+      if (typeof window !== "undefined") {
+        const storedAddress = localStorage.getItem("walletAddress");
+        if (storedAddress) {
+          console.log("Found address in localStorage:", storedAddress);
+          walletAddress = storedAddress;
+        }
       }
-    }
-    
-    // Fallback to getting address from ethereum provider
-    if (typeof window !== "undefined" && window.ethereum) {
-      try {
-        // First try the simpler method
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts && accounts.length > 0) {
-          console.log("Detected wallet address from eth_accounts:", accounts[0]);
-          setAddress(accounts[0]);
-          // Save to localStorage for future use
-          window.localStorage.setItem('walletAddress', accounts[0]);
-          return accounts[0];
+      
+      // If no address in localStorage, try to get from wagmi
+      if (!walletAddress) {
+        console.log("No address in localStorage, checking ethereum provider...");
+        
+        if (typeof window !== "undefined" && window.ethereum) {
+          try {
+            // Request accounts from the provider
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            if (accounts && accounts.length > 0) {
+              walletAddress = accounts[0];
+              console.log("Got address from ethereum provider:", walletAddress);
+            }
+          } catch (error) {
+            console.error("Error requesting accounts:", error);
+          }
+        }
+      }
+      
+      // If we have an address, set it
+      if (walletAddress) {
+        setAddress(walletAddress);
+        setIsConnected(true);
+        
+        // Store in localStorage for persistence
+        if (typeof window !== "undefined") {
+          localStorage.setItem("walletAddress", walletAddress);
         }
         
-        // Fallback to viem method
-        let walletClient = createWalletClient({
-          transport: custom(window.ethereum),
-          chain: hardhat,
-        });
-
-        let [address] = await walletClient.getAddresses();
-        console.log("Detected wallet address from viem:", address);
-        setAddress(address);
-        // Save to localStorage for future use
-        if (address) {
-          window.localStorage.setItem('walletAddress', address);
+        // Set up event listener for account changes
+        if (typeof window !== "undefined" && window.ethereum) {
+          window.ethereum.on('accountsChanged', (accounts: string[]) => {
+            console.log("Accounts changed:", accounts);
+            if (accounts.length === 0) {
+              // User disconnected wallet
+              setAddress(null);
+              setIsConnected(false);
+              localStorage.removeItem("walletAddress");
+            } else {
+              // User switched accounts
+              setAddress(accounts[0]);
+              localStorage.setItem("walletAddress", accounts[0]);
+            }
+          });
         }
-        return address;
-      } catch (error) {
-        console.error("Error getting user address:", error);
+        
+        return walletAddress;
+      } else {
+        console.log("No wallet address found");
+        setAddress(null);
+        setIsConnected(false);
         return null;
       }
+    } catch (error) {
+      console.error("Error getting user address:", error);
+      setAddress(null);
+      setIsConnected(false);
+      return null;
     }
-    return null;
   };
-  
-  // Check if wallet is connected (for immediate UI updates)
-  useEffect(() => {
-    const checkWalletConnection = async () => {
-      if (typeof window !== "undefined" && window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          if (accounts && accounts.length > 0) {
-            console.log("Wallet already connected:", accounts[0]);
-            setAddress(accounts[0]);
-          }
-        } catch (error) {
-          console.error("Error checking wallet connection:", error);
-        }
-      }
-    };
-    
-    checkWalletConnection();
-    
-    // Listen for account changes
-    if (typeof window !== "undefined" && window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        console.log("Account changed to:", accounts[0]);
-        setAddress(accounts[0] || null);
-      });
-    }
-    
-    return () => {
-      if (typeof window !== "undefined" && window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', () => {});
-      }
-    };
-  }, []);
 
-  // Create and mint a new greeting card NFT
+  // Mint a new greeting card
   const mintGreetingCard = async (
     recipient: string,
     message: string,
     festival: string,
     imageUrl?: string
   ) => {
-    // Check if wallet is connected and get the address if needed
-    let senderAddress = address;
-    if (!senderAddress && typeof window !== "undefined" && window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts && accounts.length > 0) {
-          senderAddress = accounts[0];
-          setAddress(senderAddress); // Update the state
-          console.log("Using detected wallet address:", senderAddress);
-        }
-      } catch (error) {
-        console.error("Error getting accounts:", error);
-      }
-    }
-    
-    if (!senderAddress) {
-      throw new Error("Please connect your wallet first");
-    }
-    
-    setIsLoading(true);
     try {
       console.log("Starting the minting process...");
       
       // Generate a beautiful SVG greeting card
-      const svgDataUrl = generateGreetingCardSVG(festival, message, senderAddress, recipient);
+      const svgDataUrl = generateGreetingCardSVG(festival, message, address || "", recipient);
       
       // Create metadata with the SVG image
       const metadata = {
@@ -152,7 +143,7 @@ export const useFestify = () => {
           },
           {
             trait_type: "Sender",
-            value: senderAddress
+            value: address
           },
           {
             trait_type: "Recipient",
@@ -234,7 +225,7 @@ export const useFestify = () => {
 
       // Call the contract to mint the greeting card
       // Convert senderAddress to the correct format (0x-prefixed string)
-      const formattedAddress = senderAddress as `0x${string}`;
+      const formattedAddress = address as `0x${string}`;
       
       const tx = await walletClient.writeContract({
         address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
@@ -245,72 +236,48 @@ export const useFestify = () => {
         value: mintFee,
       });
       
-      console.log("Transaction submitted:", tx);
-
-      // Wait for transaction receipt
-      console.log("Waiting for transaction confirmation...");
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: tx,
-      });
+      console.log("Transaction hash:", tx);
       
-      console.log("Transaction confirmed:", receipt);
-
-      // Refresh the greeting cards list
+      // Wait for transaction to be mined
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+      console.log("Transaction receipt:", receipt);
+      
+      // Fetch updated greeting cards
       await fetchGreetingCards();
       
-      setIsLoading(false);
       return receipt;
     } catch (error) {
       console.error("Error minting greeting card:", error);
-      setIsLoading(false);
       throw error;
     }
   };
-  
-  // Helper function to get default image for a festival
-  const getDefaultImageForFestival = (festival: string) => {
-    const festivalImages = {
-      christmas: 'https://ipfs.io/ipfs/QmNtxfy9Mk8qLsdGnraHGk5XDX4MzpQzNz6KWHBpNquGts',
-      newyear: 'https://ipfs.io/ipfs/QmYqA8GsxbXeWoJxH2RBuAyFRNqyBJCJb4kByuYBtVCRsf',
-      eid: 'https://ipfs.io/ipfs/QmTcM5VyR7SLcBZJ8Qrv8KbRfo2CyYZMXfM7Rz3XDmhG3H',
-      sallah: 'https://ipfs.io/ipfs/QmXfnZpQy4U4UgcVwDMgVCTQxCVKLXBgX5Ym4xLSk9wGK1'
-    };
-    
-    return festivalImages[festival as keyof typeof festivalImages] || 
-           'https://ipfs.io/ipfs/QmVgAZjazqRrETC9TZzQVNYA25RAEKoMLrEGvNSCxYcEgZ';
-  };
 
-  // Fetch greeting cards sent by the user
+  // Get greeting cards sent by the user
   const getSentGreetings = async () => {
     try {
       if (!address) return [];
 
+      // Create contract instance with proper typing
       const festifyContract = getContract({
         abi: FestifyABI.abi,
-        address: FESTIFY_CONTRACT_ADDRESS,
+        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
         client: publicClient,
-      });
+      }) as FestifyContract;
 
       // Get token IDs sent by the user
-      const tokenIds = await festifyContract.read.getSentGreetings([address]) as bigint[];
+      const tokenIds = await festifyContract.read.getSentTokens([address as `0x${string}`]) as bigint[];
       
       // Get details for each token
       const greetings = await Promise.all(
         tokenIds.map(async (tokenId: bigint) => {
           const tokenURI = await festifyContract.read.tokenURI([tokenId]);
-          const festival = await festifyContract.read.getGreetingFestival([tokenId]);
-          const recipient = await festifyContract.read.ownerOf([tokenId]);
+          const festival = await festifyContract.read.getTokenFestival([tokenId]);
+          const recipient = await festifyContract.read.getTokenRecipient([tokenId]);
           
           // Parse metadata from data URI
           let metadata = null;
-          try {
-            if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
-              const base64Data = tokenURI.replace('data:application/json;base64,', '');
-              const jsonString = atob(base64Data);
-              metadata = JSON.parse(jsonString);
-            }
-          } catch (error) {
-            console.error("Error parsing metadata:", error);
+          if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
+            metadata = parseBase64Metadata(tokenURI);
           }
           
           return {
@@ -330,37 +297,32 @@ export const useFestify = () => {
     }
   };
 
-  // Fetch greeting cards received by the user
+  // Get greeting cards received by the user
   const getReceivedGreetings = async () => {
     try {
       if (!address) return [];
 
+      // Create contract instance with proper typing
       const festifyContract = getContract({
         abi: FestifyABI.abi,
-        address: FESTIFY_CONTRACT_ADDRESS,
+        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
         client: publicClient,
-      });
+      }) as FestifyContract;
 
       // Get token IDs received by the user
-      const tokenIds = await festifyContract.read.getReceivedGreetings([address]) as bigint[];
+      const tokenIds = await festifyContract.read.getReceivedTokens([address as `0x${string}`]) as bigint[];
       
       // Get details for each token
       const greetings = await Promise.all(
         tokenIds.map(async (tokenId: bigint) => {
           const tokenURI = await festifyContract.read.tokenURI([tokenId]);
-          const festival = await festifyContract.read.getGreetingFestival([tokenId]);
-          const sender = await festifyContract.read.getGreetingSender([tokenId]);
+          const festival = await festifyContract.read.getTokenFestival([tokenId]);
+          const sender = await festifyContract.read.getTokenSender([tokenId]);
           
           // Parse metadata from data URI
           let metadata = null;
-          try {
-            if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
-              const base64Data = tokenURI.replace('data:application/json;base64,', '');
-              const jsonString = atob(base64Data);
-              metadata = JSON.parse(jsonString);
-            }
-          } catch (error) {
-            console.error("Error parsing metadata:", error);
+          if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
+            metadata = parseBase64Metadata(tokenURI);
           }
           
           return {
@@ -388,25 +350,25 @@ export const useFestify = () => {
       setIsLoading(true);
       console.log("Fetching greeting cards for address:", address);
       
-      // Create public client
+      // Create public client with proper typing
       const publicClient = createPublicClient({
         chain: hardhat,
         transport: http(),
-      });
+      }) as PublicClient;
       
-      // Create contract instance
+      // Create contract instance with proper typing
       const contract = getContract({
-        address: FESTIFY_CONTRACT_ADDRESS,
+        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
         abi: FestifyABI.abi,
-        publicClient,
-      });
+        client: publicClient,
+      }) as FestifyContract;
       
       // Get sent tokens
-      const sentTokensResult = await contract.read.getSentTokens([address]);
+      const sentTokensResult = await contract.read.getSentTokens([address as `0x${string}`]);
       console.log("Sent tokens result:", sentTokensResult);
       
       // Get received tokens
-      const receivedTokensResult = await contract.read.getReceivedTokens([address]);
+      const receivedTokensResult = await contract.read.getReceivedTokens([address as `0x${string}`]);
       console.log("Received tokens result:", receivedTokensResult);
       
       // Process sent tokens
@@ -419,7 +381,7 @@ export const useFestify = () => {
             const recipient = await contract.read.getTokenRecipient([tokenId]);
             
             // Parse metadata from tokenURI if it's a data URI using our safe decoder
-            const metadata = parseBase64Metadata(tokenURI);
+            const metadata = parseBase64Metadata(tokenURI as string);
             
             return {
               tokenId: tokenId.toString(),
@@ -445,7 +407,7 @@ export const useFestify = () => {
             const sender = await contract.read.getTokenSender([tokenId]);
             
             // Parse metadata from tokenURI if it's a data URI using our safe decoder
-            const metadata = parseBase64Metadata(tokenURI);
+            const metadata = parseBase64Metadata(tokenURI as string);
             
             return {
               tokenId: tokenId.toString(),
@@ -488,13 +450,12 @@ export const useFestify = () => {
 
   return {
     address,
+    isConnected,
     isLoading,
     sentGreetings,
     receivedGreetings,
     getUserAddress,
     mintGreetingCard,
-    getSentGreetings,
-    getReceivedGreetings,
     fetchGreetingCards,
   };
 };
