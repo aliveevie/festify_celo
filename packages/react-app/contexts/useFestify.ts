@@ -9,6 +9,7 @@ import {
   parseEther,
 } from "viem";
 import { hardhat } from "../providers/hardhatChain";
+import { createAndUploadMetadata } from "../utils/web3Storage";
 
 // Contract address for the FestivalGreetings contract - replace with your deployed contract address
 const FESTIFY_CONTRACT_ADDRESS = "0xE8F4699baba6C86DA9729b1B0a1DA1Bd4136eFeF";
@@ -35,6 +36,7 @@ export const useFestify = () => {
         });
 
         let [address] = await walletClient.getAddresses();
+        console.log("Detected wallet address:", address);
         setAddress(address);
         return address;
       } catch (error) {
@@ -44,6 +46,39 @@ export const useFestify = () => {
     }
     return null;
   };
+  
+  // Check if wallet is connected (for immediate UI updates)
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      if (typeof window !== "undefined" && window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            console.log("Wallet already connected:", accounts[0]);
+            setAddress(accounts[0]);
+          }
+        } catch (error) {
+          console.error("Error checking wallet connection:", error);
+        }
+      }
+    };
+    
+    checkWalletConnection();
+    
+    // Listen for account changes
+    if (typeof window !== "undefined" && window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        console.log("Account changed to:", accounts[0]);
+        setAddress(accounts[0] || null);
+      });
+    }
+    
+    return () => {
+      if (typeof window !== "undefined" && window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', () => {});
+      }
+    };
+  }, []);
 
   // Create and mint a new greeting card NFT
   const mintGreetingCard = async (
@@ -58,33 +93,19 @@ export const useFestify = () => {
     
     setIsLoading(true);
     try {
-      // Create metadata for the greeting card
-      const metadata = {
-        name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
-        description: message,
-        image: imageUrl || getDefaultImageForFestival(festival),
-        attributes: [
-          {
-            trait_type: "Festival",
-            value: festival
-          },
-          {
-            trait_type: "Sender",
-            value: address
-          },
-          {
-            trait_type: "Recipient",
-            value: recipient
-          },
-          {
-            trait_type: "Created",
-            value: new Date().toISOString()
-          }
-        ]
-      };
-
-      // Convert metadata to URI format (in a real app, this would be uploaded to IPFS)
-      const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
+      console.log("Starting the minting process...");
+      console.log("Creating and uploading metadata to IPFS...");
+      
+      // Create and upload metadata to IPFS using Web3.Storage
+      const metadataUri = await createAndUploadMetadata(
+        message,
+        festival,
+        address,
+        recipient,
+        imageUrl
+      );
+      
+      console.log("Metadata created and uploaded to IPFS:", metadataUri);
 
       // Get wallet client
       let walletClient = createWalletClient({
@@ -94,6 +115,10 @@ export const useFestify = () => {
 
       // Calculate mint fee (0.01 ETH)
       const mintFee = parseEther("0.01");
+      
+      console.log("Calling smart contract to mint greeting card...");
+      console.log("Contract address:", FESTIFY_CONTRACT_ADDRESS);
+      console.log("Parameters:", { recipient, metadataUri, festival, mintFee: mintFee.toString() });
 
       // Call the contract to mint the greeting card
       const tx = await walletClient.writeContract({
@@ -104,11 +129,16 @@ export const useFestify = () => {
         args: [recipient, metadataUri, festival],
         value: mintFee,
       });
+      
+      console.log("Transaction submitted:", tx);
 
       // Wait for transaction receipt
+      console.log("Waiting for transaction confirmation...");
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: tx,
       });
+      
+      console.log("Transaction confirmed:", receipt);
 
       // Refresh the greeting cards list
       await fetchGreetingCards();

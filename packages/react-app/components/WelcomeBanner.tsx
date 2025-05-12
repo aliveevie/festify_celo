@@ -7,7 +7,40 @@ interface WelcomeBannerProps {
 }
 
 const WelcomeBanner: React.FC<WelcomeBannerProps> = ({ isConnected }) => {
-  if (isConnected) return null;
+  // Direct check for wallet connection
+  const [directlyConnected, setDirectlyConnected] = React.useState(false);
+  
+  React.useEffect(() => {
+    const checkWalletConnection = async () => {
+      if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          setDirectlyConnected(accounts && accounts.length > 0);
+          console.log('WelcomeBanner detected accounts:', accounts);
+        } catch (error) {
+          console.error('Error checking wallet connection in WelcomeBanner:', error);
+        }
+      }
+    };
+    
+    checkWalletConnection();
+    
+    // Listen for account changes
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        setDirectlyConnected(accounts && accounts.length > 0);
+      };
+      
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
+    }
+  }, []);
+  
+  // If either prop says connected or we directly detect connection, hide banner
+  if (isConnected || directlyConnected) return null;
 
   return (
     <div className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6 mb-8">
