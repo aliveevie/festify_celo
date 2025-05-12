@@ -9,7 +9,6 @@ import {
   parseEther,
 } from "viem";
 import { hardhat } from "../providers/hardhatChain";
-import { createAndUploadMetadata } from "../utils/web3Storage";
 
 // Contract address for the FestivalGreetings contract - replace with your deployed contract address
 const FESTIFY_CONTRACT_ADDRESS = "0xE8F4699baba6C86DA9729b1B0a1DA1Bd4136eFeF";
@@ -94,18 +93,36 @@ export const useFestify = () => {
     setIsLoading(true);
     try {
       console.log("Starting the minting process...");
-      console.log("Creating and uploading metadata to IPFS...");
       
-      // Create and upload metadata to IPFS using Web3.Storage
-      const metadataUri = await createAndUploadMetadata(
-        message,
-        festival,
-        address,
-        recipient,
-        imageUrl
-      );
+      // Create metadata directly without Web3.Storage
+      // For simplicity, we're using a base64 encoded JSON string
+      const metadata = {
+        name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
+        description: message,
+        image: imageUrl || getDefaultImageForFestival(festival),
+        attributes: [
+          {
+            trait_type: "Festival",
+            value: festival
+          },
+          {
+            trait_type: "Sender",
+            value: address
+          },
+          {
+            trait_type: "Recipient",
+            value: recipient
+          },
+          {
+            trait_type: "Created",
+            value: new Date().toISOString()
+          }
+        ]
+      };
       
-      console.log("Metadata created and uploaded to IPFS:", metadataUri);
+      // Convert metadata to URI format
+      const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
+      console.log("Metadata created:", metadata);
 
       // Get wallet client
       let walletClient = createWalletClient({
@@ -150,6 +167,19 @@ export const useFestify = () => {
       setIsLoading(false);
       throw error;
     }
+  };
+  
+  // Helper function to get default image for a festival
+  const getDefaultImageForFestival = (festival: string) => {
+    const festivalImages = {
+      christmas: 'https://ipfs.io/ipfs/QmNtxfy9Mk8qLsdGnraHGk5XDX4MzpQzNz6KWHBpNquGts',
+      newyear: 'https://ipfs.io/ipfs/QmYqA8GsxbXeWoJxH2RBuAyFRNqyBJCJb4kByuYBtVCRsf',
+      eid: 'https://ipfs.io/ipfs/QmTcM5VyR7SLcBZJ8Qrv8KbRfo2CyYZMXfM7Rz3XDmhG3H',
+      sallah: 'https://ipfs.io/ipfs/QmXfnZpQy4U4UgcVwDMgVCTQxCVKLXBgX5Ym4xLSk9wGK1'
+    };
+    
+    return festivalImages[festival as keyof typeof festivalImages] || 
+           'https://ipfs.io/ipfs/QmVgAZjazqRrETC9TZzQVNYA25RAEKoMLrEGvNSCxYcEgZ';
   };
 
   // Fetch greeting cards sent by the user
