@@ -242,6 +242,51 @@ export const useFestify = () => {
       const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
       console.log("Transaction receipt:", receipt);
       
+      // Add detailed debugging for the transaction
+      console.log("Transaction successful to contract address:", FESTIFY_CONTRACT_ADDRESS);
+      console.log("Recipient address that should receive the NFT:", recipient);
+      
+      try {
+        // Check if the NFT was actually minted and transferred to the recipient
+        const festifyContract = getContract({
+          abi: FestifyABI.abi,
+          address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
+          client: publicClient,
+        }) as FestifyContract;
+        
+        // Get the latest token ID (should be the one just minted)
+        // We can estimate this as the current nextTokenId - 1
+        const latestTokenId = await festifyContract.read.balanceOf([recipient as `0x${string}`]);
+        console.log(`Recipient ${recipient} now has ${latestTokenId} tokens`);
+        
+        // Try to get the owner of the latest token
+        try {
+          // We don't know the exact token ID, so let's check the recipient's received tokens
+          const receivedTokens = await festifyContract.read.getReceivedGreetings([recipient as `0x${string}`]);
+          console.log("Recipient's tokens:", receivedTokens);
+          
+          if (receivedTokens && receivedTokens.length > 0) {
+            const latestToken = receivedTokens[receivedTokens.length - 1];
+            console.log("Latest token ID:", latestToken.toString());
+            
+            // Get the owner of this token
+            const owner = await festifyContract.read.ownerOf([latestToken]);
+            console.log(`Token ${latestToken} is owned by: ${owner}`);
+            
+            // Verify it matches the recipient
+            if (owner.toLowerCase() === recipient.toLowerCase()) {
+              console.log("✅ NFT successfully transferred to recipient!");
+            } else {
+              console.log("❌ NFT owner doesn't match recipient!");
+            }
+          }
+        } catch (err) {
+          console.error("Error checking token ownership:", err);
+        }
+      } catch (err) {
+        console.error("Error verifying NFT transfer:", err);
+      }
+      
       // Fetch updated greeting cards
       await fetchGreetingCards();
       
@@ -265,14 +310,14 @@ export const useFestify = () => {
       }) as FestifyContract;
 
       // Get token IDs sent by the user
-      const tokenIds = await festifyContract.read.getSentTokens([address as `0x${string}`]) as bigint[];
+      const tokenIds = await festifyContract.read.getSentGreetings([address as `0x${string}`]) as bigint[];
       
       // Get details for each token
       const greetings = await Promise.all(
         tokenIds.map(async (tokenId: bigint) => {
           const tokenURI = await festifyContract.read.tokenURI([tokenId]);
-          const festival = await festifyContract.read.getTokenFestival([tokenId]);
-          const recipient = await festifyContract.read.getTokenRecipient([tokenId]);
+          const festival = await festifyContract.read.getGreetingFestival([tokenId]);
+          const recipient = await festifyContract.read.ownerOf([tokenId]);
           
           // Parse metadata from data URI
           let metadata = null;
@@ -310,14 +355,14 @@ export const useFestify = () => {
       }) as FestifyContract;
 
       // Get token IDs received by the user
-      const tokenIds = await festifyContract.read.getReceivedTokens([address as `0x${string}`]) as bigint[];
+      const tokenIds = await festifyContract.read.getReceivedGreetings([address as `0x${string}`]) as bigint[];
       
       // Get details for each token
       const greetings = await Promise.all(
         tokenIds.map(async (tokenId: bigint) => {
           const tokenURI = await festifyContract.read.tokenURI([tokenId]);
-          const festival = await festifyContract.read.getTokenFestival([tokenId]);
-          const sender = await festifyContract.read.getTokenSender([tokenId]);
+          const festival = await festifyContract.read.getGreetingFestival([tokenId]);
+          const sender = await festifyContract.read.getGreetingSender([tokenId]);
           
           // Parse metadata from data URI
           let metadata = null;
@@ -364,11 +409,12 @@ export const useFestify = () => {
       }) as FestifyContract;
       
       // Get sent tokens
-      const sentTokensResult = await contract.read.getSentTokens([address as `0x${string}`]);
+      console.log('Contract address being used:', FESTIFY_CONTRACT_ADDRESS);
+const sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]);
       console.log("Sent tokens result:", sentTokensResult);
       
       // Get received tokens
-      const receivedTokensResult = await contract.read.getReceivedTokens([address as `0x${string}`]);
+      const receivedTokensResult = await contract.read.getReceivedGreetings([address as `0x${string}`]);
       console.log("Received tokens result:", receivedTokensResult);
       
       // Process sent tokens
@@ -377,8 +423,8 @@ export const useFestify = () => {
         sentTokens.map(async (tokenId) => {
           try {
             const tokenURI = await contract.read.tokenURI([tokenId]);
-            const festival = await contract.read.getTokenFestival([tokenId]);
-            const recipient = await contract.read.getTokenRecipient([tokenId]);
+            const festival = await contract.read.getGreetingFestival([tokenId]);
+            const recipient = await contract.read.ownerOf([tokenId]);
             
             // Parse metadata from tokenURI if it's a data URI using our safe decoder
             const metadata = parseBase64Metadata(tokenURI as string);
@@ -403,8 +449,8 @@ export const useFestify = () => {
         receivedTokens.map(async (tokenId) => {
           try {
             const tokenURI = await contract.read.tokenURI([tokenId]);
-            const festival = await contract.read.getTokenFestival([tokenId]);
-            const sender = await contract.read.getTokenSender([tokenId]);
+            const festival = await contract.read.getGreetingFestival([tokenId]);
+            const sender = await contract.read.getGreetingSender([tokenId]);
             
             // Parse metadata from tokenURI if it's a data URI using our safe decoder
             const metadata = parseBase64Metadata(tokenURI as string);
