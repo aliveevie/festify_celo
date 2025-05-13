@@ -410,21 +410,52 @@ export const useFestify = () => {
       
       // Get sent tokens
       console.log('Contract address being used:', FESTIFY_CONTRACT_ADDRESS);
-const sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]);
-      console.log("Sent tokens result:", sentTokensResult);
+let sentTokensResult;
+      try {
+        sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]);
+        console.log("Sent tokens result:", sentTokensResult);
+      } catch (error) {
+        console.error("Error fetching sent greetings:", error);
+        sentTokensResult = [];
+      }
       
       // Get received tokens
-      const receivedTokensResult = await contract.read.getReceivedGreetings([address as `0x${string}`]);
-      console.log("Received tokens result:", receivedTokensResult);
+      let receivedTokensResult;
+      try {
+        receivedTokensResult = await contract.read.getReceivedGreetings([address as `0x${string}`]);
+        console.log("Received tokens result:", receivedTokensResult);
+      } catch (error) {
+        console.error("Error fetching received greetings:", error);
+        receivedTokensResult = [];
+      }
       
       // Process sent tokens
       const sentTokens = Array.isArray(sentTokensResult) ? sentTokensResult : [];
       const sentTokenDetails = await Promise.all(
         sentTokens.map(async (tokenId) => {
           try {
-            const tokenURI = await contract.read.tokenURI([tokenId]);
-            const festival = await contract.read.getGreetingFestival([tokenId]);
-            const recipient = await contract.read.ownerOf([tokenId]);
+            // Wrap each contract call in try/catch to handle potential errors
+            let tokenURI, festival, recipient;
+            try {
+              tokenURI = await contract.read.tokenURI([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
+              tokenURI = "";
+            }
+            
+            try {
+              festival = await contract.read.getGreetingFestival([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching festival for token ${tokenId}:`, error);
+              festival = "";
+            }
+            
+            try {
+              recipient = await contract.read.ownerOf([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching owner for token ${tokenId}:`, error);
+              recipient = "0x0000000000000000000000000000000000000000";
+            }
             
             // Parse metadata from tokenURI if it's a data URI using our safe decoder
             const metadata = parseBase64Metadata(tokenURI as string);
@@ -448,9 +479,28 @@ const sentTokensResult = await contract.read.getSentGreetings([address as `0x${s
       const receivedTokenDetails = await Promise.all(
         receivedTokens.map(async (tokenId) => {
           try {
-            const tokenURI = await contract.read.tokenURI([tokenId]);
-            const festival = await contract.read.getGreetingFestival([tokenId]);
-            const sender = await contract.read.getGreetingSender([tokenId]);
+            // Wrap each contract call in try/catch to handle potential errors
+            let tokenURI, festival, sender;
+            try {
+              tokenURI = await contract.read.tokenURI([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
+              tokenURI = "";
+            }
+            
+            try {
+              festival = await contract.read.getGreetingFestival([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching festival for token ${tokenId}:`, error);
+              festival = "";
+            }
+            
+            try {
+              sender = await contract.read.getGreetingSender([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching sender for token ${tokenId}:`, error);
+              sender = "0x0000000000000000000000000000000000000000";
+            }
             
             // Parse metadata from tokenURI if it's a data URI using our safe decoder
             const metadata = parseBase64Metadata(tokenURI as string);
