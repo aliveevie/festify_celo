@@ -64,7 +64,7 @@ export const initializeWeb3Storage = async (): Promise<boolean> => {
           space = spaces[0];
           console.log("Using existing space:", space.did());
         } else {
-          space = await client.createSpace("festival-greetings-nft");
+          space = await client.createSpace("festival-greetings-nft", { account });
           console.log("Created new space:", space.did());
         }
         
@@ -124,34 +124,12 @@ export const uploadToWeb3Storage = async (content: any): Promise<string> => {
       blob = new Blob([JSON.stringify(content)], { type: "application/json" });
     }
     
-    // Try to upload the blob
+    // Create a File object from the Blob - required by uploadFile method
+    const fileName = typeof content === 'string' && content.includes('<svg') ? 'image.svg' : 'data.json';
+    const file = new File([blob], fileName, { type: blob.type });
+    
     try {
-      // Check if client has the uploadFile method
-      if (typeof client.uploadFile !== 'function') {
-        console.warn("client.uploadFile is not a function, trying alternative methods");
-        
-        // Try alternative methods based on the client version
-        if (typeof client.storeBlob === 'function') {
-          const cid = await client.storeBlob(blob);
-          console.log("Successfully uploaded using storeBlob with CID:", cid);
-          return `ipfs://${cid}`;
-        }
-        
-        if (typeof client.put === 'function') {
-          const cid = await client.put([new File([blob], 'data.json', { type: blob.type })]);
-          console.log("Successfully uploaded using put with CID:", cid);
-          return `ipfs://${cid}`;
-        }
-        
-        // If we get here, no upload method is available
-        throw new Error("No compatible upload method found in client");
-      }
-      
       // Upload using the correct method from the Storacha API
-      // First create a File object from the Blob
-      const file = new File([blob], 'data.json', { type: blob.type });
-      
-      // Upload the file to the space
       const uploadResult = await client.uploadFile(file);
       console.log("Successfully uploaded to Web3.Storage with CID:", uploadResult.toString());
       
@@ -160,8 +138,25 @@ export const uploadToWeb3Storage = async (content: any): Promise<string> => {
     } catch (uploadError) {
       console.error("Error during upload:", uploadError);
       
-      // For development, generate a fake CID if upload fails
-      console.log("Falling back to fake CID for development");
+      // Try alternative methods if uploadFile fails
+      try {
+        if (typeof client.storeBlob === 'function') {
+          const cid = await client.storeBlob(blob);
+          console.log("Successfully uploaded using storeBlob with CID:", cid);
+          return `ipfs://${cid}`;
+        }
+        
+        if (typeof client.put === 'function') {
+          const cid = await client.put([file]);
+          console.log("Successfully uploaded using put with CID:", cid);
+          return `ipfs://${cid}`;
+        }
+      } catch (alternativeError) {
+        console.error("Alternative upload methods failed:", alternativeError);
+      }
+      
+      // For development, generate a fake CID if all upload methods fail
+      console.log("All upload methods failed, falling back to fake CID for development");
       const fakeCid = generateFakeCid();
       return `ipfs://${fakeCid}`;
     }
@@ -194,11 +189,18 @@ export const uploadSvgToIPFS = async (svgContent: string): Promise<string> => {
     
     // Try to upload the SVG to IPFS
     try {
-      const ipfsUrl = await uploadToWeb3Storage(svgData);
-      console.log("SVG uploaded to IPFS:", ipfsUrl);
+      // Create a File object from the SVG content
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml" });
+      const svgFile = new File([svgBlob], "greeting-card.svg", { type: "image/svg+xml" });
       
-      // Convert IPFS URL to HTTP gateway URL for better compatibility
-      const gatewayUrl = ipfsUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+      // Upload the file directly using uploadFile
+      const uploadResult = await client.uploadFile(svgFile);
+      const ipfsCid = uploadResult.toString();
+      console.log("SVG uploaded to IPFS with CID:", ipfsCid);
+      
+      // Convert IPFS URL to HTTP gateway URL for better compatibility with MetaMask
+      const gatewayUrl = `https://w3s.link/ipfs/${ipfsCid}`;
+      console.log("Gateway URL for SVG:", gatewayUrl);
       return gatewayUrl;
     } catch (uploadError) {
       console.error("Error uploading SVG to IPFS, using fallback:", uploadError);
@@ -256,13 +258,18 @@ export const createAndUploadMetadata = async (
     };
     
     try {
-      // Upload metadata to Web3.Storage
-      const metadataUrl = await uploadToWeb3Storage(metadata);
-      console.log("Metadata uploaded to Web3.Storage:", metadataUrl);
+      // Create a File object from the metadata
+      const metadataBlob = new Blob([JSON.stringify(metadata)], { type: "application/json" });
+      const metadataFile = new File([metadataBlob], "metadata.json", { type: "application/json" });
       
-      // Convert IPFS URL to HTTP gateway URL for better compatibility
-      const gatewayUrl = metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-      return gatewayUrl;
+      // Upload metadata to Web3.Storage
+      const uploadResult = await client.uploadFile(metadataFile);
+      const metadataCid = uploadResult.toString();
+      console.log("Metadata uploaded to Web3.Storage with CID:", metadataCid);
+      
+      // Return the IPFS URL that will be stored on-chain
+      // Use the gateway URL for better compatibility
+      return `https://w3s.link/ipfs/${metadataCid}`;
     } catch (uploadError) {
       console.error("Error uploading metadata to IPFS:", uploadError);
       

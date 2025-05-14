@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFestifyContext } from '@/providers/FestifyProvider';
 import { CONTRACT_ADDRESSES } from '@/config/contracts';
 
@@ -13,6 +13,81 @@ const MetaMaskHelper: React.FC<MetaMaskHelperProps> = ({ tokenId, contractAddres
   const { currentChain } = useFestifyContext();
   const [isAdding, setIsAdding] = useState(false);
   const [addResult, setAddResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [tokenData, setTokenData] = useState<any>(null);
+  
+  // Fetch token metadata if available
+  useEffect(() => {
+    const fetchTokenData = async () => {
+      try {
+        if (!window.ethereum) return;
+        
+        // Create a minimal ABI just for tokenURI function
+        const minABI = [
+          {
+            "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
+            "name": "tokenURI",
+            "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+            "stateMutability": "view",
+            "type": "function"
+          }
+        ];
+        
+        // Call the tokenURI function to get metadata URI
+        const tokenURIResult = await window.ethereum.request({
+          method: 'eth_call',
+          params: [
+            {
+              to: contractAddress,
+              data: `0xc87b56dd${parseInt(tokenId).toString(16).padStart(64, '0')}` // tokenURI function selector + tokenId
+            },
+            'latest'
+          ]
+        });
+        
+        // Parse the result - it's hex encoded
+        if (tokenURIResult && tokenURIResult !== '0x') {
+          // Extract the string from the result
+          const hexString = tokenURIResult.slice(2); // Remove 0x prefix
+          const stringLength = parseInt(hexString.slice(64, 128), 16); // Get the length of the string
+          const encodedString = hexString.slice(128, 128 + stringLength * 2); // Get the encoded string
+          
+          // Convert hex to string
+          let tokenURI = '';
+          for (let i = 0; i < encodedString.length; i += 2) {
+            tokenURI += String.fromCharCode(parseInt(encodedString.substr(i, 2), 16));
+          }
+          
+          console.log("Token URI:", tokenURI);
+          
+          // If it's an HTTP URL, fetch the metadata
+          if (tokenURI.startsWith('http')) {
+            try {
+              const response = await fetch(tokenURI);
+              const metadata = await response.json();
+              setTokenData(metadata);
+            } catch (error) {
+              console.error("Error fetching metadata:", error);
+            }
+          } 
+          // If it's a data URI, parse it
+          else if (tokenURI.startsWith('data:application/json;base64,')) {
+            try {
+              const base64Data = tokenURI.replace('data:application/json;base64,', '');
+              const jsonString = atob(base64Data);
+              const metadata = JSON.parse(jsonString);
+              setTokenData(metadata);
+            } catch (error) {
+              console.error("Error parsing data URI metadata:", error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching token data:", error);
+      }
+    };
+    
+    fetchTokenData();
+  }, [contractAddress, tokenId]);
   
   const handleAddToMetaMask = async () => {
     try {
@@ -72,15 +147,35 @@ const MetaMaskHelper: React.FC<MetaMaskHelperProps> = ({ tokenId, contractAddres
       }
       
       // Request to watch the asset
+      const watchAssetParams = {
+        type: 'ERC721', // Use ERC721 for NFTs
+        options: {
+          address: contractAddress,
+          tokenId: tokenId,
+        },
+      };
+      
+      // If we have token data with image URL, add it to the params
+      if (tokenData && tokenData.image) {
+        // Make sure the image URL is HTTP(S) based, not IPFS protocol or data URI
+        let imageUrl = tokenData.image;
+        if (imageUrl.startsWith('ipfs://')) {
+          imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+        }
+        
+        // Add token information to the params
+        Object.assign(watchAssetParams.options, {
+          image: imageUrl,
+          name: tokenData.name || `NFT #${tokenId}`,
+          description: tokenData.description || '',
+        });
+      }
+      
+      console.log("Adding NFT to MetaMask with params:", watchAssetParams);
+      
       const success = await window.ethereum.request({
         method: 'wallet_watchAsset',
-        params: {
-          type: 'ERC721',
-          options: {
-            address: contractAddress,
-            tokenId: tokenId,
-          },
-        },
+        params: watchAssetParams,
       });
       
       if (success) {
@@ -159,6 +254,12 @@ const MetaMaskHelper: React.FC<MetaMaskHelperProps> = ({ tokenId, contractAddres
       <div className="mt-4 text-xs text-gray-500">
         <p>Network: {currentChain.name} (Chain ID: {currentChain.id})</p>
         <p>Make sure MetaMask is connected to the {currentChain.name} network.</p>
+        {tokenData && tokenData.image && (
+          <div className="mt-2">
+            <p>NFT Image URL:</p>
+            <p className="break-all">{tokenData.image}</p>
+          </div>
+        )}
       </div>
     </div>
   );

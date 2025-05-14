@@ -25,23 +25,38 @@ const NFTDetails: React.FC<NFTDetailsProps> = ({
 }) => {
   const [showMetaMaskHelper, setShowMetaMaskHelper] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [displayImageUrl, setDisplayImageUrl] = useState('');
   const { currentChainId } = useFestifyContext();
   const contractAddress = CONTRACT_ADDRESSES[currentChainId] || '';
   
-  let imageUrl = metadata?.image || '';
   const name = metadata?.name || `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`;
   const description = metadata?.description || '';
   
-  // Ensure image URL is properly formatted
+  // Process image URL for display
   useEffect(() => {
-    if (isIpfsUrl(imageUrl)) {
-      imageUrl = ipfsToHttpUrl(imageUrl);
-    }
-  }, [imageUrl]);
+    const processImageUrl = async () => {
+      try {
+        let imageUrl = metadata?.image || '';
+        
+        // Convert IPFS URLs to HTTP gateway URLs
+        if (isIpfsUrl(imageUrl)) {
+          imageUrl = ipfsToHttpUrl(imageUrl);
+        }
+        
+        // For data URIs, keep as is
+        setDisplayImageUrl(imageUrl);
+      } catch (error) {
+        console.error("Error processing image URL:", error);
+        setImageError(true);
+      }
+    };
+    
+    processImageUrl();
+  }, [metadata]);
   
   // Function to render the image based on its type
   const renderImage = () => {
-    if (!imageUrl) {
+    if (!displayImageUrl) {
       return (
         <div className="bg-gray-200 h-64 flex items-center justify-center rounded-lg">
           <p className="text-gray-500">No image available</p>
@@ -57,16 +72,16 @@ const NFTDetails: React.FC<NFTDetailsProps> = ({
       );
     }
     
-    if (imageUrl.startsWith('data:image/svg')) {
+    if (displayImageUrl.startsWith('data:image/svg')) {
       try {
         // Extract SVG content from data URI
-        const svgContent = atob(imageUrl.split(',')[1]);
-        return <div dangerouslySetInnerHTML={{ __html: svgContent }} />;
+        const svgContent = atob(displayImageUrl.split(',')[1]);
+        return <div dangerouslySetInnerHTML={{ __html: svgContent }} className="w-full h-auto" />;
       } catch (e) {
         console.error("Error rendering SVG:", e);
         return (
           <img 
-            src={imageUrl} 
+            src={displayImageUrl} 
             alt={name} 
             className="w-full h-auto rounded-lg"
             onError={() => setImageError(true)}
@@ -77,7 +92,7 @@ const NFTDetails: React.FC<NFTDetailsProps> = ({
     
     return (
       <img 
-        src={imageUrl} 
+        src={displayImageUrl} 
         alt={name} 
         className="w-full h-auto rounded-lg"
         onError={() => setImageError(true)}
@@ -105,6 +120,11 @@ const NFTDetails: React.FC<NFTDetailsProps> = ({
           <div className="rounded-lg overflow-hidden border">
             {renderImage()}
           </div>
+          {displayImageUrl && (
+            <div className="mt-2 text-xs text-gray-500 break-all">
+              <p>Image URL: {displayImageUrl}</p>
+            </div>
+          )}
         </div>
         
         <div className="w-full md:w-2/3">
@@ -151,6 +171,13 @@ const NFTDetails: React.FC<NFTDetailsProps> = ({
               View on Explorer
             </a>
           </div>
+          
+          {tokenURI && (
+            <div className="mt-4 text-xs text-gray-500">
+              <p className="font-medium">Token URI:</p>
+              <p className="break-all">{tokenURI}</p>
+            </div>
+          )}
         </div>
       </div>
       
