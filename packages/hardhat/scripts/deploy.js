@@ -19,17 +19,17 @@ async function main() {
   const contractAddress = await festivalGreetings.getAddress();
   console.log(`FestivalGreetings deployed to: ${contractAddress}`);
   
-  // Get the current network information
-  const networkName = hre.network.name;
-  let chainId = hre.network.config.chainId;
-  
-  // For localhost, hardcode the chainId to 31337 (Hardhat's default)
-  if (networkName === "localhost" || networkName === "hardhat") {
-    chainId = 31337;
-  }
-  
-  console.log(`Deployed to network: ${networkName} (Chain ID: ${chainId})`);
-  
+    // Get the current network information
+    const networkName = hre.network.name;
+    let chainId = hre.network.config.chainId;
+    
+    // For localhost, hardcode the chainId to 31337 (Hardhat's default)
+    if (networkName === "localhost" || networkName === "hardhat") {
+      chainId = 31337;
+    }
+    
+    console.log(`Deployed to network: ${networkName} (Chain ID: ${chainId})`);
+    
   // Update the contract address in the config file
   const contractsConfigPath = path.join(__dirname, "../../react-app/config/contracts.ts");
   

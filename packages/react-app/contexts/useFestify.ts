@@ -215,30 +215,30 @@ export const useFestify = () => {
         console.error("Failed to upload to IPFS, falling back to data URI:", ipfsError);
         
         // Fallback to data URI method if IPFS upload fails
-        const metadata = {
-          name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
-          description: message,
+      const metadata = {
+        name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
+        description: message,
           image: svgDataUrl,
-          attributes: [
-            {
-              trait_type: "Festival",
-              value: festival
-            },
-            {
-              trait_type: "Sender",
-              value: address
-            },
-            {
-              trait_type: "Recipient",
-              value: recipient
-            },
-            {
-              trait_type: "Created",
-              value: new Date().toISOString()
-            }
-          ]
-        };
-        
+        attributes: [
+          {
+            trait_type: "Festival",
+            value: festival
+          },
+          {
+            trait_type: "Sender",
+            value: address
+          },
+          {
+            trait_type: "Recipient",
+            value: recipient
+          },
+          {
+            trait_type: "Created",
+            value: new Date().toISOString()
+          }
+        ]
+      };
+      
         // Convert metadata to URI format using UTF-8 safe encoding
         metadataUri = `data:application/json;base64,${utf8ToBase64(JSON.stringify(metadata))}`;
       }
@@ -527,7 +527,7 @@ export const useFestify = () => {
       
       // Get sent tokens
       console.log('Contract address being used:', contractAddress);
-      let sentTokensResult: bigint[] = [];
+let sentTokensResult: bigint[] = [];
       try {
         sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]) as bigint[];
         console.log("Sent tokens result:", sentTokensResult);

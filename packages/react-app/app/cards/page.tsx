@@ -30,7 +30,7 @@ export default function CardsPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Your Greeting Cards</h1>
           <Link href="/">
-            <Button variant="outline">Back to Home</Button>
+            <Button variant="outline" title="Back to Home" onClick={() => {}}>Back to Home</Button>
           </Link>
         </div>
 
@@ -58,6 +58,7 @@ export default function CardsPage() {
                   variant="outline" 
                   onClick={() => fetchGreetingCards()}
                   className="text-xs"
+                  title="Refresh Cards"
                 >
                   Refresh Cards
                 </Button>

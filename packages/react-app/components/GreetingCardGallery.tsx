@@ -101,7 +101,12 @@ const GreetingCardGallery: React.FC = () => {
           </div>
         </CardContent>
         <CardFooter className="p-4 bg-gray-50 border-t">
-          <Button variant="outline" className="w-full" onClick={() => window.open(`https://testnets.opensea.io/assets/hardhat/${card.tokenId}`, '_blank')}>
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            onClick={() => window.open(`https://testnets.opensea.io/assets/hardhat/${card.tokenId}`, '_blank')}
+            title="View on OpenSea"
+          >
             View on OpenSea
           </Button>
         </CardFooter>
@@ -188,7 +193,11 @@ const GreetingCardGallery: React.FC = () => {
                   <li>Click "Mint Greeting Card" to send it</li>
                 </ol>
               </div>
-              <Button className="mt-2" onClick={() => window.open('/', '_self')}>
+              <Button 
+                className="mt-2" 
+                onClick={() => window.open('/', '_self')}
+                title="Create a Greeting Card"
+              >
                 Create a Greeting Card
               </Button>
             </div>
@@ -197,7 +206,10 @@ const GreetingCardGallery: React.FC = () => {
       </Tabs>
       
       <div className="mt-8 text-center">
-        <Button onClick={() => fetchGreetingCards()}>
+        <Button 
+          onClick={() => fetchGreetingCards()}
+          title="Refresh Cards"
+        >
           Refresh Cards
         </Button>
       </div>
