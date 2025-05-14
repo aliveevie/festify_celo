@@ -16,6 +16,7 @@ import { allChains, getChainById } from "../providers/chains";
 import { generateGreetingCardSVG } from "../utils/cardGenerator";
 import { utf8ToBase64, parseBase64Metadata } from "../utils/base64Utils";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
+import { initializeWeb3Storage, createAndUploadMetadata } from "../utils/web3Storage";
 
 // Type for our contract
 type FestifyContract = GetContractReturnType<typeof FestifyABI.abi, PublicClient>;
@@ -28,6 +29,22 @@ export const useFestify = () => {
   const [receivedGreetings, setReceivedGreetings] = useState<any[]>([]);
   const [currentChainId, setCurrentChainId] = useState<number>(31337); // Default to Hardhat
   const [currentChain, setCurrentChain] = useState<Chain>(hardhat);
+  const [web3StorageInitialized, setWeb3StorageInitialized] = useState(false);
+
+  // Initialize Web3.Storage when component mounts
+  useEffect(() => {
+    const initStorage = async () => {
+      try {
+        const initialized = await initializeWeb3Storage();
+        setWeb3StorageInitialized(initialized);
+        console.log("Web3.Storage initialized:", initialized);
+      } catch (error) {
+        console.error("Failed to initialize Web3.Storage:", error);
+      }
+    };
+    
+    initStorage();
+  }, []);
 
   // Get the contract address for the current chain
   const getContractAddress = (): string => {
@@ -171,40 +188,62 @@ export const useFestify = () => {
   ) => {
     try {
       console.log("Starting the minting process...");
+      setIsLoading(true);
       
       // Generate a beautiful SVG greeting card
       const svgDataUrl = generateGreetingCardSVG(festival, message, address || "", recipient);
-      
-      // Create metadata with the SVG image
-      const metadata = {
-        name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
-        description: message,
-        image: svgDataUrl, // Use the generated SVG instead of a static image
-        attributes: [
-          {
-            trait_type: "Festival",
-            value: festival
-          },
-          {
-            trait_type: "Sender",
-            value: address
-          },
-          {
-            trait_type: "Recipient",
-            value: recipient
-          },
-          {
-            trait_type: "Created",
-            value: new Date().toISOString()
-          }
-        ]
-      };
-      
       console.log("Generated SVG greeting card for recipient");
       
-      // Convert metadata to URI format using UTF-8 safe encoding
-      const metadataUri = `data:application/json;base64,${utf8ToBase64(JSON.stringify(metadata))}`;
-      console.log("Metadata created:", metadata);
+      // Try to use Web3.Storage to upload metadata to IPFS
+      let metadataUri;
+      try {
+        if (!web3StorageInitialized) {
+          await initializeWeb3Storage();
+          setWeb3StorageInitialized(true);
+        }
+        
+        // Create and upload metadata to IPFS
+        metadataUri = await createAndUploadMetadata(
+          message,
+          festival,
+          address || "",
+          recipient,
+          svgDataUrl
+        );
+        console.log("Metadata uploaded to IPFS:", metadataUri);
+      } catch (ipfsError) {
+        console.error("Failed to upload to IPFS, falling back to data URI:", ipfsError);
+        
+        // Fallback to data URI method if IPFS upload fails
+        const metadata = {
+          name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
+          description: message,
+          image: svgDataUrl,
+          attributes: [
+            {
+              trait_type: "Festival",
+              value: festival
+            },
+            {
+              trait_type: "Sender",
+              value: address
+            },
+            {
+              trait_type: "Recipient",
+              value: recipient
+            },
+            {
+              trait_type: "Created",
+              value: new Date().toISOString()
+            }
+          ]
+        };
+        
+        // Convert metadata to URI format using UTF-8 safe encoding
+        metadataUri = `data:application/json;base64,${utf8ToBase64(JSON.stringify(metadata))}`;
+      }
+      
+      console.log("Final metadata URI:", metadataUri);
 
       // Get the contract address for the current chain
       const contractAddress = getContractAddress();
@@ -324,6 +363,14 @@ export const useFestify = () => {
             // Verify it matches the recipient
             if (owner.toLowerCase() === (recipient as string).toLowerCase()) {
               console.log("✅ NFT successfully transferred to recipient!");
+              
+              // Show instructions for adding to MetaMask
+              console.log("To view this NFT in MetaMask:");
+              console.log(`1. Open MetaMask and go to NFTs tab`);
+              console.log(`2. Click "Import NFT"`);
+              console.log(`3. Enter Contract Address: ${contractAddress}`);
+              console.log(`4. Enter Token ID: ${latestToken.toString()}`);
+              console.log(`5. Click "Import"`);
             } else {
               console.log("❌ NFT owner doesn't match recipient!");
             }
@@ -342,6 +389,8 @@ export const useFestify = () => {
     } catch (error) {
       console.error("Error minting greeting card:", error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -631,5 +680,6 @@ export const useFestify = () => {
     mintGreetingCard,
     fetchGreetingCards,
     updateCurrentChain,
+    getContractAddress,
   };
 };
