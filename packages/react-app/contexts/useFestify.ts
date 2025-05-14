@@ -15,7 +15,7 @@ import { generateGreetingCardSVG } from "../utils/cardGenerator";
 import { utf8ToBase64, parseBase64Metadata } from "../utils/base64Utils";
 
 // Contract address for the FestivalGreetings contract - deployed with Ignition
-const FESTIFY_CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+const FESTIFY_CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 // Initialize public client for Hardhat
 const publicClient = createPublicClient({
