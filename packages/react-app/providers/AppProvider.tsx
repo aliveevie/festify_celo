@@ -8,10 +8,11 @@ import {
   connectorsForWallets,
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { hardhat } from '../providers/hardhatChain';
+import { hardhat, celo, alfajores, optimism, optimismGoerli, allChains } from '../providers/chains';
 
 import Layout from '../components/Layout';
 import { injectedWallet } from '@rainbow-me/rainbowkit/wallets';
+import { FestifyProvider } from './FestifyProvider';
 
 const connectors = connectorsForWallets(
   [
@@ -28,9 +29,13 @@ const connectors = connectorsForWallets(
 
 const config = createConfig({
   connectors,
-  chains: [hardhat],
+  chains: allChains,
   transports: {
     [hardhat.id]: http(),
+    [celo.id]: http(),
+    [alfajores.id]: http(),
+    [optimism.id]: http(),
+    [optimismGoerli.id]: http(),
   },
 });
 
@@ -41,7 +46,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <Layout>{children}</Layout>
+          <FestifyProvider>
+            <Layout>{children}</Layout>
+          </FestifyProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

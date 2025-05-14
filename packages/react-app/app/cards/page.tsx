@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFestify } from "@/contexts/useFestify";
 import { Container } from "@/components/ui/container";
 import GreetingCardGallery from "@/components/GreetingCardGallery";
@@ -10,16 +10,19 @@ import Link from "next/link";
 export default function CardsPage() {
   const { address, getUserAddress, fetchGreetingCards, isLoading } = useFestify();
 
-  useEffect(() => {
-    getUserAddress();
-  }, [getUserAddress]);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    if (address) {
+    getUserAddress();
+  }, []);
+
+  useEffect(() => {
+    if (address && !hasLoaded) {
       console.log("Fetching greeting cards for address:", address);
       fetchGreetingCards();
+      setHasLoaded(true);
     }
-  }, [address, fetchGreetingCards]);
+  }, [address, fetchGreetingCards, hasLoaded]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-4 md:p-8">

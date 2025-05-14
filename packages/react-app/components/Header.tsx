@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { useFestify } from "@/contexts/useFestify";
+import ChainSelector from "./ChainSelector";
 
 export default function Header() {
   const [hideConnectBtn, setHideConnectBtn] = useState(false);
@@ -13,68 +14,13 @@ export default function Header() {
   const { address } = useAccount();
   const { getUserAddress } = useFestify();
 
-  // Sync the wallet address with our context and ensure correct network
+  // Sync the wallet address with our context
   useEffect(() => {
     if (address) {
       console.log("Header: Wallet connected with address:", address);
       // Force update the address in our context
       window.localStorage.setItem('walletAddress', address);
       getUserAddress();
-      
-      // Check if we're on the correct network (Hardhat)
-      const checkAndSwitchNetwork = async () => {
-        if (typeof window !== "undefined" && window.ethereum) {
-          try {
-            // Get current chain ID
-            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-            console.log("Current chain ID:", parseInt(chainId, 16));
-            
-            // If not on Hardhat network (31337), prompt to switch
-            if (parseInt(chainId, 16) !== 31337) {
-              console.log("Not on Hardhat network, attempting to switch...");
-              try {
-                // Try to switch to Hardhat network
-                await window.ethereum.request({
-                  method: 'wallet_switchEthereumChain',
-                  params: [{ chainId: '0x7A69' }], // 31337 in hex
-                });
-                console.log("Successfully switched to Hardhat network");
-              } catch (switchError: any) {
-                // This error code indicates that the chain has not been added to MetaMask
-                if (switchError.code === 4902) {
-                  try {
-                    await window.ethereum.request({
-                      method: 'wallet_addEthereumChain',
-                      params: [
-                        {
-                          chainId: '0x7A69', // 31337 in hex
-                          chainName: 'Hardhat Local',
-                          nativeCurrency: {
-                            name: 'Ethereum',
-                            symbol: 'ETH',
-                            decimals: 18
-                          },
-                          rpcUrls: ['http://127.0.0.1:8545'],
-                          blockExplorerUrls: []
-                        },
-                      ],
-                    });
-                    console.log("Added Hardhat network to wallet");
-                  } catch (addError) {
-                    console.error("Error adding Hardhat network:", addError);
-                  }
-                } else {
-                  console.error("Error switching to Hardhat network:", switchError);
-                }
-              }
-            }
-          } catch (error) {
-            console.error("Error checking network:", error);
-          }
-        }
-      };
-      
-      checkAndSwitchNetwork();
     }
   }, [address, getUserAddress]);
 
@@ -122,14 +68,17 @@ export default function Header() {
                 </div>
               </div>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                {!hideConnectBtn && (
-                  <ConnectButton
-                    showBalance={{
-                      smallScreen: true,
-                      largeScreen: false,
-                    }}
-                  />
-                )}
+                <div className="flex items-center space-x-4">
+                  <ChainSelector />
+                  {!hideConnectBtn && (
+                    <ConnectButton
+                      showBalance={{
+                        smallScreen: true,
+                        largeScreen: false,
+                      }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>

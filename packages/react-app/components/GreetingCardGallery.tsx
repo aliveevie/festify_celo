@@ -28,12 +28,7 @@ const GreetingCardGallery: React.FC = () => {
   const { address, sentGreetings, receivedGreetings, fetchGreetingCards, isLoading } = useFestify();
   const [activeTab, setActiveTab] = useState('received');
   
-  useEffect(() => {
-    if (address) {
-      console.log('GreetingCardGallery: Fetching cards for address:', address);
-      fetchGreetingCards();
-    }
-  }, [address, fetchGreetingCards]);
+  // Removed duplicate fetchGreetingCards call as it's already called in the parent component
   
   // Debug information
   useEffect(() => {
@@ -193,7 +188,7 @@ const GreetingCardGallery: React.FC = () => {
                   <li>Click "Mint Greeting Card" to send it</li>
                 </ol>
               </div>
-              <Button className="mt-2" onClick={() => window.location.href = '/'}>
+              <Button className="mt-2" onClick={() => window.open('/', '_self')}>
                 Create a Greeting Card
               </Button>
             </div>

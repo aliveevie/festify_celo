@@ -1,0 +1,770 @@
+import { createPublicClient, http, custom, parseEther, getContract, Address, PublicClient, Chain, createWalletClient } from "viem";
+import FestifyABI from "./festify-abi.json";
+import { Prettify, GetContractReturnType } from "viem/types";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useAccount, useNetwork, useSwitchNetwork } from "wagmi";
+import { CONTRACT_ADDRESSES, getContractAddress as getConfigContractAddress, updateContractAddress } from "../config/contracts";
+import { hardhat, celo, alfajores, optimism, optimismGoerli, allChains, getChainById } from "../providers/chains";
+import { generateGreetingCardSVG } from "../utils/cardGenerator";
+import { utf8ToBase64, parseBase64Metadata } from "../utils/base64Utils";
+
+// Add ethereum to the window type
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
+// Get contract address for current chain - using imported function from config
+const getContractAddress = (chainId: number): string => {
+  return getConfigContractAddress(chainId);
+};
+
+// Create a function to initialize public client for a specific chain
+const createClient = (chain: Chain) => {
+  return createPublicClient({
+    chain,
+    transport: http(),
+  }) as PublicClient;
+};
+
+// Initialize with Hardhat by default
+let publicClient = createClient(hardhat);
+
+// Type for our contract
+type FestifyContract = GetContractReturnType<typeof FestifyABI.abi, PublicClient>;
+
+export const useFestify = () => {
+  const [address, setAddress] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sentGreetings, setSentGreetings] = useState<any[]>([]);
+  const [receivedGreetings, setReceivedGreetings] = useState<any[]>([]);
+  const [currentChain, setCurrentChain] = useState<Chain>(hardhat);
+  
+  // Get wagmi hooks
+  const { chain } = useNetwork();
+  const { switchNetwork } = useSwitchNetwork();
+  const [availableChains, setAvailableChains] = useState<Chain[]>(allChains);
+
+  // Default festival images
+  const getDefaultImageForFestival = (festival: string): string => {
+    const festivalMap: Record<string, string> = {
+      christmas: "https://ipfs.io/ipfs/QmNtxfy9Mk8qLsdGnraHGk5XDX4MzpQzNz6KWHBpNquGts",
+      newyear: "https://ipfs.io/ipfs/QmYqA8GsxbXeWoJxH2RBuAyFRNqyBJCJb4kByuYBtVCRsf",
+      eid: "https://ipfs.io/ipfs/QmTcM5VyR7SLcBZJ8Qrv8KbRfo2CyYZMXfM7Rz3XDmhG3H",
+      sallah: "https://ipfs.io/ipfs/QmXfnZpQy4U4UgcVwDMgVCTQxCVKLXBgX5Ym4xLSk9wGK1",
+    };
+    return festivalMap[festival] || festivalMap.newyear;
+  };
+
+  // Get user's wallet address
+  const getUserAddress = async () => {
+    try {
+      let walletAddress = null;
+      
+      // Try to get address from localStorage first
+      if (typeof window !== "undefined") {
+        const storedAddress = localStorage.getItem("walletAddress");
+        if (storedAddress) {
+          console.log("Found address in localStorage:", storedAddress);
+          walletAddress = storedAddress;
+        }
+      }
+      
+      // If no address in localStorage, try to get from wagmi
+      if (!walletAddress) {
+        console.log("No address in localStorage, checking ethereum provider...");
+        
+        if (typeof window !== "undefined" && window.ethereum) {
+          try {
+            // Request accounts from the provider
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            if (accounts && accounts.length > 0) {
+              walletAddress = accounts[0];
+              console.log("Got address from ethereum provider:", walletAddress);
+            }
+          } catch (error) {
+            console.error("Error requesting accounts:", error);
+          }
+        }
+      }
+      
+      // If we have an address, set it
+      if (walletAddress) {
+        setAddress(walletAddress);
+        setIsConnected(true);
+        
+        // Store in localStorage for persistence
+        if (typeof window !== "undefined") {
+          localStorage.setItem("walletAddress", walletAddress);
+        }
+        
+        // Set up event listener for account changes
+        if (typeof window !== "undefined" && window.ethereum) {
+          window.ethereum.on('accountsChanged', (accounts: string[]) => {
+            console.log("Accounts changed:", accounts);
+            if (accounts.length === 0) {
+              // User disconnected wallet
+              setAddress(null);
+              setIsConnected(false);
+              localStorage.removeItem("walletAddress");
+            } else {
+              // User switched accounts
+              setAddress(accounts[0]);
+              localStorage.setItem("walletAddress", accounts[0]);
+            }
+          });
+        }
+        
+        return walletAddress;
+      } else {
+        console.log("No wallet address found");
+        setAddress(null);
+        setIsConnected(false);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error getting user address:", error);
+      setAddress(null);
+      setIsConnected(false);
+      return null;
+    }
+  };
+
+  // Mint a new greeting card
+  const mintGreetingCard = async (recipient: string, festival: string, message: string, imageUrl: string) => {
+    try {
+      if (!address) {
+        throw new Error("Wallet not connected");
+      }
+      
+      // Get current chain ID from the chain object
+      const currentChainId = chain?.id || 31337;
+      
+      // Check if contract address exists for current chain
+      const contractAddressForChain = getContractAddress(currentChainId);
+      if (!contractAddressForChain || contractAddressForChain === "") {
+        console.log(`No contract deployed on current network (${chain?.name || 'Unknown'}), switching to a supported network...`);
+        
+        // Find the first available network with a contract address
+        const availableNetwork = Object.entries(CONTRACT_ADDRESSES)
+          .find(([_, address]) => address && address.length > 0);
+        
+        if (availableNetwork) {
+          const targetChainId = Number(availableNetwork[0]);
+          console.log(`Switching to network with ID ${targetChainId} which has a deployed contract`);
+          await switchToNetwork(targetChainId);
+          
+          // Return early to allow the network switch to complete
+          // The user will need to try minting again after the network switch
+          return { success: false, message: `Please try again after switching to ${getChainById(targetChainId)?.name || targetChainId}` };
+        } else {
+          throw new Error("No deployed contract found on any network");
+        }
+      }
+      
+      console.log(`Using contract at ${contractAddressForChain} on chain ${currentChain.name} (ID: ${currentChain.id})`);
+
+      // Generate a beautiful SVG greeting card
+      const svgDataUrl = generateGreetingCardSVG(festival, message, address || "", recipient);
+      
+      // Create metadata with the SVG image
+      const metadata = {
+        name: `${festival.charAt(0).toUpperCase() + festival.slice(1)} Greeting`,
+        description: message,
+        image: svgDataUrl, // Use the generated SVG instead of a static image
+        attributes: [
+          {
+            trait_type: "Festival",
+            value: festival
+          },
+          {
+            trait_type: "Sender",
+            value: address
+          },
+          {
+            trait_type: "Recipient",
+            value: recipient
+          },
+          {
+            trait_type: "Created",
+            value: new Date().toISOString()
+          }
+        ]
+      };
+      
+      console.log("Generated SVG greeting card for recipient");
+      
+      // Convert metadata to URI format using UTF-8 safe encoding
+      const metadataUri = `data:application/json;base64,${utf8ToBase64(JSON.stringify(metadata))}`;
+      console.log("Metadata created:", metadata);
+
+      // Check if we're on the correct network
+      if (typeof window !== "undefined" && window.ethereum) {
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        const currentChainId = parseInt(chainId, 16);
+        console.log("useFestify: Current chain ID before minting:", currentChainId);
+        
+        if (currentChainId !== currentChain.id) {
+          console.log(`Not on ${currentChain.name} network, attempting to switch...`);
+          try {
+            // Try to switch to the selected network
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: `0x${currentChain.id.toString(16)}` }],
+            });
+            console.log(`Successfully switched to ${currentChain.name} network`);
+          } catch (switchError: any) {
+            // This error code indicates that the chain has not been added to MetaMask
+            if (switchError.code === 4902) {
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [
+                    {
+                      chainId: `0x${currentChain.id.toString(16)}`,
+                      chainName: currentChain.name,
+                      nativeCurrency: currentChain.nativeCurrency,
+                      rpcUrls: currentChain.rpcUrls.default.http,
+                      blockExplorerUrls: currentChain.blockExplorers ? 
+                        [currentChain.blockExplorers.default.url] : []
+                    },
+                  ],
+                });
+                console.log(`Added ${currentChain.name} network to wallet`);
+              } catch (addError) {
+                console.error("Error adding Hardhat network:", addError);
+                throw new Error('Failed to add Hardhat network to your wallet. Please add it manually.');
+              }
+            } else {
+              console.error("Error switching to Hardhat network:", switchError);
+              throw new Error('Please switch to the Hardhat network (Chain ID: 31337) in your wallet to mint greeting cards.');
+            }
+          }
+        }
+      }
+      
+      // Get wallet client
+      let walletClient = createWalletClient({
+        transport: custom(window.ethereum),
+        chain: hardhat,
+      });
+
+      // Calculate mint fee (0.01 ETH)
+      const mintFee = parseEther("0.01");
+      
+      console.log("Calling smart contract to mint greeting card...");
+      const contractAddress = getContractAddress(currentChain.id);
+      console.log("Contract address for chain", currentChain.name, ":", contractAddress);
+      console.log("Parameters:", { recipient, metadataUri, festival, mintFee: mintFee.toString() });
+
+      // Call the contract to mint the greeting card
+      // Convert senderAddress to the correct format (0x-prefixed string)
+      const formattedAddress = address as `0x${string}`;
+      
+      const tx = await walletClient.writeContract({
+        address: getContractAddress(currentChain.id) as `0x${string}`,
+        abi: FestifyABI.abi,
+        functionName: "mintGreetingCard",
+        account: formattedAddress,
+        args: [recipient as `0x${string}`, metadataUri, festival],
+        value: mintFee,
+      });
+      
+      console.log("Transaction hash:", tx);
+      
+      // Wait for transaction to be mined
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+      console.log("Transaction receipt:", receipt);
+      
+      // Add detailed debugging for the transaction
+      console.log("Transaction successful to contract address:", getContractAddress(currentChain.id));
+      console.log("Recipient address that should receive the NFT:", recipient);
+      
+      try {
+        // Check if the NFT was actually minted and transferred to the recipient
+        const festifyContract = getContract({
+          abi: FestifyABI.abi,
+          address: getContractAddress(currentChain.id) as `0x${string}`,
+          client: publicClient,
+        }) as FestifyContract;
+        
+        // Get the latest token ID (should be the one just minted)
+        // We can estimate this as the current nextTokenId - 1
+        const latestTokenId = await festifyContract.read.balanceOf([recipient as `0x${string}`]);
+        console.log(`Recipient ${recipient} now has ${latestTokenId} tokens`);
+        
+        // Try to get the owner of the latest token
+        try {
+          // We don't know the exact token ID, so let's check the recipient's received tokens
+          const receivedTokens = await festifyContract.read.getReceivedGreetings([recipient as `0x${string}`]);
+          console.log("Recipient's tokens:", receivedTokens);
+          
+          if (receivedTokens && Array.isArray(receivedTokens) && receivedTokens.length > 0) {
+            const latestToken = receivedTokens[receivedTokens.length - 1];
+            console.log("Latest token ID:", latestToken.toString());
+            
+            // Get the owner of this token
+            const owner = await festifyContract.read.ownerOf([latestToken]);
+            console.log(`Token ${latestToken} is owned by: ${owner}`);
+            
+            // Verify it matches the recipient
+            if (typeof owner === 'string' && typeof recipient === 'string' && owner.toLowerCase() === recipient.toLowerCase()) {
+              console.log(" NFT successfully transferred to recipient!");
+            } else {
+              console.log(" NFT owner doesn't match recipient!");
+            }
+          }
+        } catch (err) {
+          console.error("Error checking token ownership:", err);
+        }
+      } catch (err) {
+        console.error("Error verifying NFT transfer:", err);
+      }
+      
+      // Fetch updated greeting cards
+      await fetchGreetings(address || '');
+      
+      return receipt;
+    } catch (error) {
+      console.error("Error minting greeting card:", error);
+      throw error;
+    }
+  };
+
+  // Get greeting cards sent by the user
+  const getSentGreetings = async () => {
+    try {
+      if (!address) return [];
+
+      // Create contract instance with proper typing
+      const festifyContract = createContractInstance(getContractAddress(currentChain.id));
+
+      // Get token IDs sent by the user
+      const tokenIds = await festifyContract.read.getSentGreetings([address as `0x${string}`]) as bigint[];
+      
+      // Get details for each token
+      const greetings = await Promise.all(
+        tokenIds.map(async (tokenId: bigint) => {
+          const tokenURI = await festifyContract.read.tokenURI([tokenId]);
+          const festival = await festifyContract.read.getGreetingFestival([tokenId]);
+          const recipient = await festifyContract.read.ownerOf([tokenId]);
+          
+          // Parse metadata from data URI
+          let metadata = null;
+          if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
+            metadata = parseBase64Metadata(tokenURI);
+          }
+          
+          return {
+            tokenId: tokenId.toString(),
+            tokenURI,
+            festival,
+            recipient,
+            metadata,
+          };
+        })
+      );
+      
+      return greetings;
+    } catch (error) {
+      console.error("Error getting sent greetings:", error);
+      return [];
+    }
+  };
+
+// Get greeting cards received by the user
+const getReceivedGreetings = async () => {
+  try {
+    if (!address) return [];
+
+    // Create contract instance with proper typing
+    const festifyContract = createContractInstance(getContractAddress(currentChain.id)) as FestifyContractRead;
+
+    // Get token IDs received by the user
+    const tokenIds = await festifyContract.read.getReceivedGreetings([address as `0x${string}`]) as bigint[];
+    
+    // Get details for each token
+    const greetings = await Promise.all(
+      tokenIds.map(async (tokenId: bigint) => {
+        const tokenURI = await festifyContract.read.tokenURI([tokenId]);
+        const festival = await festifyContract.read.getGreetingFestival([tokenId]);
+        const sender = await festifyContract.read.getGreetingSender([tokenId]);
+        
+        // Parse metadata from data URI
+        let metadata = null;
+        if (typeof tokenURI === 'string' && tokenURI.startsWith('data:application/json;base64,')) {
+          metadata = parseBase64Metadata(tokenURI);
+        }
+        
+        return {
+          tokenId: tokenId.toString(),
+          tokenURI,
+          festival,
+          sender,
+          metadata,
+        };
+      })
+    );
+    
+    return greetings;
+  } catch (error) {
+    console.error("Error getting received greetings:", error);
+    return [];
+  }
+};
+
+// Fetch both sent and received greeting cards
+const fetchGreetings = async (userAddress: string) => {
+  if (!userAddress) return { sentCards: [], receivedCards: [] };
+  
+  // Prevent multiple simultaneous fetches
+  if (isLoading) {
+    console.log('Already fetching greeting cards, skipping duplicate request');
+    return { sentCards: sentGreetings, receivedCards: receivedGreetings };
+  }
+  
+  setIsLoading(true);
+  console.log("Fetching greeting cards for address:", userAddress);
+  
+  try {
+    // Use the current chain's public client
+    // No need to create a new one as we already have publicClient
+    
+    // Create contract instance with proper typing
+    const contract = createContractInstance(getContractAddress(currentChain.id)) as FestifyContractRead;
+    
+    // Get sent tokens
+    console.log('Contract address being used for', currentChain.name, ':', getContractAddress(currentChain.id));
+    let sentTokensResult;
+    try {
+      sentTokensResult = await contract.read.getSentGreetings([userAddress as `0x${string}`]);
+      console.log("Sent tokens result:", sentTokensResult);
+    } catch (error) {
+      console.error("Error fetching sent greetings:", error);
+      sentTokensResult = [];
+    }
+    
+    // Get received tokens
+    let receivedTokensResult;
+    try {
+      receivedTokensResult = await contract.read.getReceivedGreetings([userAddress as `0x${string}`]);
+      console.log("Received tokens result:", receivedTokensResult);
+    } catch (error) {
+      console.error("Error fetching received greetings:", error);
+      receivedTokensResult = [];
+    }
+    
+    // Process sent tokens
+    const sentTokens = Array.isArray(sentTokensResult) ? sentTokensResult : [];
+    const sentTokenDetails = await Promise.all(
+      sentTokens.map(async (tokenId) => {
+        try {
+          // Wrap each contract call in try/catch to handle potential errors
+          let tokenURI, festival, recipient;
+          try {
+            tokenURI = await contract.read.tokenURI([tokenId]);
+          } catch (error) {
+            console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
+            tokenURI = "";
+          }
+          
+          try {
+            festival = await contract.read.getGreetingFestival([tokenId]);
+          } catch (error) {
+            console.error(`Error fetching festival for token ${tokenId}:`, error);
+            festival = "";
+          }
+          
+          try {
+            recipient = await contract.read.ownerOf([tokenId]);
+          } catch (error) {
+            console.error(`Error fetching owner for token ${tokenId}:`, error);
+            recipient = "0x0000000000000000000000000000000000000000";
+          }
+          
+          // Parse metadata from tokenURI if it's a data URI using our safe decoder
+          const metadata = parseBase64Metadata(tokenURI as string);
+          
+          return {
+            tokenId: tokenId.toString(),
+            tokenURI,
+            festival,
+            recipient,
+            metadata,
+          };
+        } catch (error) {
+          console.error(`Error fetching details for sent token ${tokenId}:`, error);
+          return null;
+        }
+      })
+    );
+    
+    // Process received tokens
+    const receivedTokens = Array.isArray(receivedTokensResult) ? receivedTokensResult : [];
+    const receivedTokenDetails = await Promise.all(
+      receivedTokens.map(async (tokenId) => {
+        try {
+          // Wrap each contract call in try/catch to handle potential errors
+          let tokenURI, festival, sender;
+          try {
+            tokenURI = await contract.read.tokenURI([tokenId]);
+          } catch (error) {
+            console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
+            tokenURI = "";
+          }
+          
+          try {
+            festival = await contract.read.getGreetingFestival([tokenId]);
+          } catch (error) {
+            console.error(`Error fetching festival for token ${tokenId}:`, error);
+            festival = "";
+          }
+          
+          try {
+            sender = await contract.read.getGreetingSender([tokenId]);
+          } catch (error) {
+            console.error(`Error fetching sender for token ${tokenId}:`, error);
+            sender = "0x0000000000000000000000000000000000000000";
+          }
+          
+          // Parse metadata from tokenURI if it's a data URI using our safe decoder
+          const metadata = parseBase64Metadata(tokenURI as string);
+          
+          return {
+            tokenId: tokenId.toString(),
+            tokenURI,
+            festival,
+            sender,
+            metadata,
+          };
+        } catch (error) {
+          console.error(`Error fetching details for received token ${tokenId}:`, error);
+          return null;
+        sentTokensResult = await contract.read.getSentGreetings([userAddress as `0x${string}`]);
+        console.log("Sent tokens result:", sentTokensResult);
+      } catch (error) {
+        console.error("Error fetching sent greetings:", error);
+        sentTokensResult = [];
+      }
+      
+      // Get received tokens
+      let receivedTokensResult;
+      try {
+        receivedTokensResult = await contract.read.getReceivedGreetings([userAddress as `0x${string}`]);
+        console.log("Received tokens result:", receivedTokensResult);
+      } catch (error) {
+        console.error("Error fetching received greetings:", error);
+        receivedTokensResult = [];
+      }
+      
+      // Process sent tokens
+      const sentTokens = Array.isArray(sentTokensResult) ? sentTokensResult : [];
+      const sentTokenDetails = await Promise.all(
+        sentTokens.map(async (tokenId) => {
+          try {
+            // Wrap each contract call in try/catch to handle potential errors
+            let tokenURI, festival, recipient;
+            try {
+              tokenURI = await contract.read.tokenURI([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
+              tokenURI = "";
+            }
+            
+            try {
+              festival = await contract.read.getGreetingFestival([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching festival for token ${tokenId}:`, error);
+              festival = "";
+            }
+            
+            try {
+              recipient = await contract.read.ownerOf([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching owner for token ${tokenId}:`, error);
+              recipient = "0x0000000000000000000000000000000000000000";
+            }
+            
+            // Parse metadata from tokenURI if it's a data URI using our safe decoder
+            const metadata = parseBase64Metadata(tokenURI as string);
+            
+            return {
+              tokenId: tokenId.toString(),
+              tokenURI,
+              festival,
+              recipient,
+              metadata,
+            };
+          } catch (error) {
+            console.error(`Error fetching details for sent token ${tokenId}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      // Process received tokens
+      const receivedTokens = Array.isArray(receivedTokensResult) ? receivedTokensResult : [];
+      const receivedTokenDetails = await Promise.all(
+        receivedTokens.map(async (tokenId) => {
+          try {
+            // Wrap each contract call in try/catch to handle potential errors
+            let tokenURI, festival, sender;
+            try {
+              tokenURI = await contract.read.tokenURI([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
+              tokenURI = "";
+            }
+            
+            try {
+              festival = await contract.read.getGreetingFestival([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching festival for token ${tokenId}:`, error);
+              festival = "";
+            }
+            
+            try {
+              sender = await contract.read.getGreetingSender([tokenId]);
+            } catch (error) {
+              console.error(`Error fetching sender for token ${tokenId}:`, error);
+              sender = "0x0000000000000000000000000000000000000000";
+            }
+            
+            // Parse metadata from tokenURI if it's a data URI using our safe decoder
+            const metadata = parseBase64Metadata(tokenURI as string);
+            
+            return {
+              tokenId: tokenId.toString(),
+              tokenURI,
+              festival,
+              sender,
+              metadata,
+            };
+          } catch (error) {
+            console.error(`Error fetching details for received token ${tokenId}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out null values and set state
+      setSentGreetings(sentTokenDetails.filter(Boolean));
+      setReceivedGreetings(receivedTokenDetails.filter(Boolean));
+      
+      console.log("Sent greetings:", sentTokenDetails.filter(Boolean));
+      console.log("Received greetings:", receivedTokenDetails.filter(Boolean));
+    } catch (error) {
+      console.error("Error fetching greeting cards:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initialize when component mounts
+  useEffect(() => {
+    getUserAddress();
+  }, []);
+
+  // Fetch greeting cards only once when address is first available
+  useEffect(() => {
+    let isMounted = true;
+    let hasLoaded = false;
+    
+    if (address && isMounted && !hasLoaded) {
+      hasLoaded = true;
+      // Add a slight delay to prevent UI flickering
+      const timer = setTimeout(() => {
+        if (isMounted) {
+          fetchGreetings(address);
+        }
+      }, 500);
+      
+      return () => {
+        clearTimeout(timer);
+        isMounted = false;
+      };
+    }
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [address]);
+
+  // Function to switch chains
+  const switchToNetwork = async (targetChainId: number) => {
+    if (!switchNetwork) return;
+    try {
+      setIsLoading(true);
+      
+      // Switch network using wagmi
+      await switchNetwork(targetChainId);
+      console.log(`Switched to chain ID: ${targetChainId}`);
+      
+      // Update the current chain
+      const newChain = getChainById(targetChainId);
+      if (newChain) {
+        setCurrentChain(newChain);
+        
+        // Update the public client
+        publicClient = createClient(newChain);
+        console.log(`Updated public client for ${newChain.name}`);
+        
+        // Refresh greetings for the new chain if user is connected
+        if (address) {
+          await fetchGreetings(address || '');
+        }
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error(`Error switching to chain ID ${targetChainId}:`, error);
+      setIsLoading(false);
+    }
+  };
+
+  // Effect to detect chain changes from the wallet
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      const handleChainChanged = (chainIdHex: string) => {
+        const chainId = parseInt(chainIdHex, 16);
+        console.log("Chain changed to:", chainId);
+        
+        // Find the chain object
+        const chain = getChainById(chainId);
+        if (chain) {
+          setCurrentChain(chain);
+          // Update the public client
+          publicClient = createClient(chain);
+          // Refresh greetings
+          if (address) {
+            fetchGreetings(address || '');
+          }
+        }
+      };
+      
+      window.ethereum.on('chainChanged', handleChainChanged);
+      
+      return () => {
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      };
+    }
+  }, [address]);
+
+  return {
+    address,
+    isConnected,
+    isLoading,
+    sentGreetings,
+    receivedGreetings,
+    currentChain,
+    availableChains: allChains,
+    mintGreetingCard,
+    getSentGreetings,
+    getReceivedGreetings,
+    fetchGreetings,
+    switchChain: (targetChain: Chain) => switchToNetwork(targetChain.id),
+    switchToNetwork,
+  };
+};
