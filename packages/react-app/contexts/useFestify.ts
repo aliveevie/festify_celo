@@ -262,7 +262,7 @@ export const useFestify = () => {
         // Try to get the owner of the latest token
         try {
           // We don't know the exact token ID, so let's check the recipient's received tokens
-          const receivedTokens = await festifyContract.read.getReceivedGreetings([recipient as `0x${string}`]);
+          const receivedTokens = await festifyContract.read.getReceivedGreetings([recipient as `0x${string}`]) as bigint[];
           console.log("Recipient's tokens:", receivedTokens);
           
           if (receivedTokens && receivedTokens.length > 0) {
@@ -270,11 +270,11 @@ export const useFestify = () => {
             console.log("Latest token ID:", latestToken.toString());
             
             // Get the owner of this token
-            const owner = await festifyContract.read.ownerOf([latestToken]);
+            const owner = await festifyContract.read.ownerOf([latestToken]) as `0x${string}`;
             console.log(`Token ${latestToken} is owned by: ${owner}`);
             
             // Verify it matches the recipient
-            if (owner.toLowerCase() === recipient.toLowerCase()) {
+            if (owner.toLowerCase() === (recipient as string).toLowerCase()) {
               console.log("✅ NFT successfully transferred to recipient!");
             } else {
               console.log("❌ NFT owner doesn't match recipient!");
@@ -410,9 +410,9 @@ export const useFestify = () => {
       
       // Get sent tokens
       console.log('Contract address being used:', FESTIFY_CONTRACT_ADDRESS);
-let sentTokensResult;
+let sentTokensResult: bigint[] = [];
       try {
-        sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]);
+        sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]) as bigint[];
         console.log("Sent tokens result:", sentTokensResult);
       } catch (error) {
         console.error("Error fetching sent greetings:", error);
@@ -420,9 +420,9 @@ let sentTokensResult;
       }
       
       // Get received tokens
-      let receivedTokensResult;
+      let receivedTokensResult: bigint[] = [];
       try {
-        receivedTokensResult = await contract.read.getReceivedGreetings([address as `0x${string}`]);
+        receivedTokensResult = await contract.read.getReceivedGreetings([address as `0x${string}`]) as bigint[];
         console.log("Received tokens result:", receivedTokensResult);
       } catch (error) {
         console.error("Error fetching received greetings:", error);
