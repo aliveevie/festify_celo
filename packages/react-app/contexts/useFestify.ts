@@ -9,19 +9,27 @@ import {
   parseEther,
   PublicClient,
   GetContractReturnType,
+  Chain,
 } from "viem";
 import { hardhat } from "../providers/hardhatChain";
+import { allChains, getChainById } from "../providers/chains";
 import { generateGreetingCardSVG } from "../utils/cardGenerator";
 import { utf8ToBase64, parseBase64Metadata } from "../utils/base64Utils";
 
-// Contract address for the FestivalGreetings contract - deployed with Ignition
-const FESTIFY_CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+// Contract addresses for the FestivalGreetings contract by chain ID
+const CONTRACT_ADDRESSES: Record<number, string> = {
+  // Hardhat Local
+  31337: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  // Celo Mainnet
+  42220: "",
+  // Alfajores Testnet
+  44787: "",
+  // Optimism Mainnet
+  10: "",
+  // Optimism Goerli Testnet
+  420: "",
 
-// Initialize public client for Hardhat
-const publicClient = createPublicClient({
-  chain: hardhat,
-  transport: http(),
-}) as PublicClient;
+  undefined: "0x2d31AA6Cf9C41800d2A34E5aA94289377cc43d4B",};
 
 // Type for our contract
 type FestifyContract = GetContractReturnType<typeof FestifyABI.abi, PublicClient>;
@@ -32,6 +40,46 @@ export const useFestify = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sentGreetings, setSentGreetings] = useState<any[]>([]);
   const [receivedGreetings, setReceivedGreetings] = useState<any[]>([]);
+  const [currentChainId, setCurrentChainId] = useState<number>(31337); // Default to Hardhat
+  const [currentChain, setCurrentChain] = useState<Chain>(hardhat);
+
+  // Get the contract address for the current chain
+  const getContractAddress = (): string => {
+    return CONTRACT_ADDRESSES[currentChainId] || "";
+  };
+
+  // Initialize public client for the current chain
+  const getPublicClient = (): PublicClient => {
+    return createPublicClient({
+      chain: currentChain,
+      transport: http(),
+    }) as PublicClient;
+  };
+
+  // Update the current chain based on the wallet's chain ID
+  const updateCurrentChain = async () => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+        const chainId = parseInt(chainIdHex, 16);
+        console.log("Current chain ID from wallet:", chainId);
+        
+        const chain = getChainById(chainId);
+        if (chain) {
+          setCurrentChainId(chainId);
+          setCurrentChain(chain);
+          console.log("Updated current chain to:", chain.name);
+        } else {
+          console.warn("Unknown chain ID:", chainId);
+          // Default to Hardhat if chain is not supported
+          setCurrentChainId(31337);
+          setCurrentChain(hardhat);
+        }
+      } catch (error) {
+        console.error("Error getting chain ID:", error);
+      }
+    }
+  };
 
   // Default festival images
   const getDefaultImageForFestival = (festival: string): string => {
@@ -101,6 +149,16 @@ export const useFestify = () => {
               localStorage.setItem("walletAddress", accounts[0]);
             }
           });
+          
+          // Set up event listener for chain changes
+          window.ethereum.on('chainChanged', (chainIdHex: string) => {
+            console.log("Chain changed:", chainIdHex);
+            const chainId = parseInt(chainIdHex, 16);
+            updateCurrentChain();
+          });
+          
+          // Update current chain
+          await updateCurrentChain();
         }
         
         return walletAddress;
@@ -162,21 +220,27 @@ export const useFestify = () => {
       const metadataUri = `data:application/json;base64,${utf8ToBase64(JSON.stringify(metadata))}`;
       console.log("Metadata created:", metadata);
 
-      // Check if we're on the correct network (Hardhat)
+      // Get the contract address for the current chain
+      const contractAddress = getContractAddress();
+      if (!contractAddress) {
+        throw new Error(`No contract deployed on the current network (Chain ID: ${currentChainId})`);
+      }
+
+      // Check if we're on the correct network
       if (typeof window !== "undefined" && window.ethereum) {
         const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-        const currentChainId = parseInt(chainId, 16);
-        console.log("useFestify: Current chain ID before minting:", currentChainId);
+        const walletChainId = parseInt(chainId, 16);
+        console.log("useFestify: Current chain ID before minting:", walletChainId);
         
-        if (currentChainId !== 31337) {
-          console.log("Not on Hardhat network, attempting to switch...");
+        if (walletChainId !== currentChainId) {
+          console.log(`Not on ${currentChain.name} network, attempting to switch...`);
           try {
-            // Try to switch to Hardhat network
+            // Try to switch to the current network
             await window.ethereum.request({
               method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x7A69' }], // 31337 in hex
+              params: [{ chainId: `0x${currentChainId.toString(16)}` }],
             });
-            console.log("Successfully switched to Hardhat network");
+            console.log(`Successfully switched to ${currentChain.name} network`);
           } catch (switchError: any) {
             // This error code indicates that the chain has not been added to MetaMask
             if (switchError.code === 4902) {
@@ -185,42 +249,39 @@ export const useFestify = () => {
                   method: 'wallet_addEthereumChain',
                   params: [
                     {
-                      chainId: '0x7A69', // 31337 in hex
-                      chainName: 'Hardhat Local',
-                      nativeCurrency: {
-                        name: 'Ethereum',
-                        symbol: 'ETH',
-                        decimals: 18
-                      },
-                      rpcUrls: ['http://127.0.0.1:8545'],
-                      blockExplorerUrls: []
+                      chainId: `0x${currentChainId.toString(16)}`,
+                      chainName: currentChain.name,
+                      nativeCurrency: currentChain.nativeCurrency,
+                      rpcUrls: [currentChain.rpcUrls.default.http[0]],
+                      blockExplorerUrls: currentChain.blockExplorers ? 
+                        [currentChain.blockExplorers.default.url] : []
                     },
                   ],
                 });
-                console.log("Added Hardhat network to wallet");
+                console.log(`Added ${currentChain.name} network to wallet`);
               } catch (addError) {
-                console.error("Error adding Hardhat network:", addError);
-                throw new Error('Failed to add Hardhat network to your wallet. Please add it manually.');
+                console.error(`Error adding ${currentChain.name} network:`, addError);
+                throw new Error(`Failed to add ${currentChain.name} network to your wallet. Please add it manually.`);
               }
             } else {
-              console.error("Error switching to Hardhat network:", switchError);
-              throw new Error('Please switch to the Hardhat network (Chain ID: 31337) in your wallet to mint greeting cards.');
+              console.error(`Error switching to ${currentChain.name} network:`, switchError);
+              throw new Error(`Please switch to the ${currentChain.name} network (Chain ID: ${currentChainId}) in your wallet to mint greeting cards.`);
             }
           }
         }
       }
       
-      // Get wallet client
+      // Get wallet client for the current chain
       let walletClient = createWalletClient({
         transport: custom(window.ethereum),
-        chain: hardhat,
+        chain: currentChain,
       });
 
       // Calculate mint fee (0.01 ETH)
       const mintFee = parseEther("0.01");
       
       console.log("Calling smart contract to mint greeting card...");
-      console.log("Contract address:", FESTIFY_CONTRACT_ADDRESS);
+      console.log("Contract address:", contractAddress);
       console.log("Parameters:", { recipient, metadataUri, festival, mintFee: mintFee.toString() });
 
       // Call the contract to mint the greeting card
@@ -228,7 +289,7 @@ export const useFestify = () => {
       const formattedAddress = address as `0x${string}`;
       
       const tx = await walletClient.writeContract({
-        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: FestifyABI.abi,
         functionName: "mintGreetingCard",
         account: formattedAddress,
@@ -239,18 +300,19 @@ export const useFestify = () => {
       console.log("Transaction hash:", tx);
       
       // Wait for transaction to be mined
+      const publicClient = getPublicClient();
       const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
       console.log("Transaction receipt:", receipt);
       
       // Add detailed debugging for the transaction
-      console.log("Transaction successful to contract address:", FESTIFY_CONTRACT_ADDRESS);
+      console.log("Transaction successful to contract address:", contractAddress);
       console.log("Recipient address that should receive the NFT:", recipient);
       
       try {
         // Check if the NFT was actually minted and transferred to the recipient
         const festifyContract = getContract({
           abi: FestifyABI.abi,
-          address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
+          address: contractAddress as `0x${string}`,
           client: publicClient,
         }) as FestifyContract;
         
@@ -302,10 +364,17 @@ export const useFestify = () => {
     try {
       if (!address) return [];
 
+      const contractAddress = getContractAddress();
+      if (!contractAddress) {
+        console.error(`No contract deployed on the current network (Chain ID: ${currentChainId})`);
+        return [];
+      }
+
       // Create contract instance with proper typing
+      const publicClient = getPublicClient();
       const festifyContract = getContract({
         abi: FestifyABI.abi,
-        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         client: publicClient,
       }) as FestifyContract;
 
@@ -347,10 +416,17 @@ export const useFestify = () => {
     try {
       if (!address) return [];
 
+      const contractAddress = getContractAddress();
+      if (!contractAddress) {
+        console.error(`No contract deployed on the current network (Chain ID: ${currentChainId})`);
+        return [];
+      }
+
       // Create contract instance with proper typing
+      const publicClient = getPublicClient();
       const festifyContract = getContract({
         abi: FestifyABI.abi,
-        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         client: publicClient,
       }) as FestifyContract;
 
@@ -395,22 +471,28 @@ export const useFestify = () => {
       setIsLoading(true);
       console.log("Fetching greeting cards for address:", address);
       
+      const contractAddress = getContractAddress();
+      if (!contractAddress) {
+        console.error(`No contract deployed on the current network (Chain ID: ${currentChainId})`);
+        setSentGreetings([]);
+        setReceivedGreetings([]);
+        setIsLoading(false);
+        return;
+      }
+      
       // Create public client with proper typing
-      const publicClient = createPublicClient({
-        chain: hardhat,
-        transport: http(),
-      }) as PublicClient;
+      const publicClient = getPublicClient();
       
       // Create contract instance with proper typing
       const contract = getContract({
-        address: FESTIFY_CONTRACT_ADDRESS as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: FestifyABI.abi,
         client: publicClient,
       }) as FestifyContract;
       
       // Get sent tokens
-      console.log('Contract address being used:', FESTIFY_CONTRACT_ADDRESS);
-let sentTokensResult: bigint[] = [];
+      console.log('Contract address being used:', contractAddress);
+      let sentTokensResult: bigint[] = [];
       try {
         sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]) as bigint[];
         console.log("Sent tokens result:", sentTokensResult);
@@ -544,14 +626,24 @@ let sentTokensResult: bigint[] = [];
     }
   }, [address]);
 
+  // Fetch greeting cards when chain changes
+  useEffect(() => {
+    if (address && currentChainId) {
+      fetchGreetingCards();
+    }
+  }, [currentChainId]);
+
   return {
     address,
     isConnected,
     isLoading,
     sentGreetings,
     receivedGreetings,
+    currentChainId,
+    currentChain,
     getUserAddress,
     mintGreetingCard,
     fetchGreetingCards,
+    updateCurrentChain,
   };
 };

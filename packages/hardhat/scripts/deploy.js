@@ -36,23 +36,50 @@ async function main() {
     
     console.log(`Deployed to network: ${networkName} (Chain ID: ${chainId})`);
     
-    // Update the contract address in the CONTRACT_ADDRESSES mapping
-    const regex = new RegExp(`(${chainId}:)\s*"([^"]*)"`, 'g'); // Match the chain ID entry
+    // Look for the CONTRACT_ADDRESSES mapping in the file
+    const contractAddressesRegex = /const CONTRACT_ADDRESSES: Record<number, string> = {([^}]*)}/s;
+    const contractAddressesMatch = useFestifyContent.match(contractAddressesRegex);
     
-    // Test if the chain ID exists in the mapping
-    if (useFestifyContent.includes(`${chainId}:`)) {
-      // If the chain ID exists in the mapping, update its address
-      useFestifyContent = useFestifyContent.replace(
-        new RegExp(`(${chainId}:)\s*"([^"]*)"`, 'g'), 
-        `$1 "${contractAddress}"`
-      );
-      console.log(`Updated contract address for chain ID ${chainId} to ${contractAddress}`);
+    if (contractAddressesMatch) {
+      // The mapping exists, update the specific chain ID entry
+      const currentMapping = contractAddressesMatch[1];
+      
+      // Check if the chain ID already exists in the mapping
+      const chainIdRegex = new RegExp(`(\\s*${chainId}:\\s*)"([^"]*)"`, 'g');
+      const chainIdExists = chainIdRegex.test(currentMapping);
+      
+      if (chainIdExists) {
+        // Update the existing chain ID entry
+        const updatedMapping = currentMapping.replace(
+          new RegExp(`(\\s*${chainId}:\\s*)"([^"]*)"`, 'g'),
+          `$1"${contractAddress}"`
+        );
+        
+        // Replace the entire mapping
+        useFestifyContent = useFestifyContent.replace(
+          contractAddressesRegex,
+          `const CONTRACT_ADDRESSES: Record<number, string> = {${updatedMapping}}`
+        );
+        
+        console.log(`Updated contract address for chain ID ${chainId} to ${contractAddress}`);
+      } else {
+        // Add a new entry for this chain ID
+        const updatedMapping = currentMapping + `\n  ${chainId}: "${contractAddress}",`;
+        
+        // Replace the entire mapping
+        useFestifyContent = useFestifyContent.replace(
+          contractAddressesRegex,
+          `const CONTRACT_ADDRESSES: Record<number, string> = {${updatedMapping}}`
+        );
+        
+        console.log(`Added new contract address for chain ID ${chainId}: ${contractAddress}`);
+      }
+      
+      fs.writeFileSync(useFestifyPath, useFestifyContent);
+      console.log("Updated contract addresses in useFestify.ts");
     } else {
-      console.log(`Chain ID ${chainId} not found in CONTRACT_ADDRESSES mapping. Please add it manually.`);
+      console.log("CONTRACT_ADDRESSES mapping not found in useFestify.ts, skipping contract address update");
     }
-    
-    fs.writeFileSync(useFestifyPath, useFestifyContent);
-    console.log("Updated contract addresses in useFestify.ts");
   } else {
     console.log("useFestify.ts not found, skipping contract address update");
   }
