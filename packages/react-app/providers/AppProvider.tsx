@@ -27,9 +27,10 @@ const connectors = connectorsForWallets(
   }
 );
 
+// Fix the type issue by explicitly casting allChains to the required tuple type
 const config = createConfig({
   connectors,
-  chains: allChains,
+  chains: [hardhat, ...allChains.slice(1)] as const,
   transports: {
     [hardhat.id]: http(),
     [celo.id]: http(),
