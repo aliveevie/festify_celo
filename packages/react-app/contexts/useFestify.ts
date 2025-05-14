@@ -15,21 +15,7 @@ import { hardhat } from "../providers/hardhatChain";
 import { allChains, getChainById } from "../providers/chains";
 import { generateGreetingCardSVG } from "../utils/cardGenerator";
 import { utf8ToBase64, parseBase64Metadata } from "../utils/base64Utils";
-
-// Contract addresses for the FestivalGreetings contract by chain ID
-const CONTRACT_ADDRESSES: Record<number, string> = {
-  // Hardhat Local
-  31337: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  // Celo Mainnet
-  42220: "",
-  // Alfajores Testnet
-  44787: "",
-  // Optimism Mainnet
-  10: "",
-  // Optimism Goerli Testnet
-  420: "",
-
-  undefined: "0x2d31AA6Cf9C41800d2A34E5aA94289377cc43d4B",};
+import { CONTRACT_ADDRESSES } from "../config/contracts";
 
 // Type for our contract
 type FestifyContract = GetContractReturnType<typeof FestifyABI.abi, PublicClient>;
