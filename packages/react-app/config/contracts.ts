@@ -1,7 +1,7 @@
 // Contract addresses for different networks
 export const CONTRACT_ADDRESSES: Record<number, string> = {
   // Hardhat Local
-  31337: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS_HARDHAT || "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  // 31337: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS_HARDHAT || "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   // Celo Mainnet
   42220: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS_CELO || "",
   // Alfajores Testnet
