@@ -8,9 +8,18 @@ import { Textarea } from '@/components/ui/textarea';
 import FestivalSelector from './FestivalSelector';
 import { Loader2 } from 'lucide-react';
 import { useFestify } from '@/contexts/useFestify';
+import { useAccount } from 'wagmi';
 
 const MintGreetingForm: React.FC = () => {
-  const { address, mintGreetingCard, isLoading } = useFestify();
+  const { 
+    address, 
+    mintGreetingCard, 
+    isLoading, 
+    chainId,
+    isNetworkSupported,
+    getNetworkName
+  } = useFestify();
+  const { address: wagmiAddress } = useAccount();
   
   // Form state
   const [step, setStep] = useState(1);
@@ -21,7 +30,38 @@ const MintGreetingForm: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
+  const [networkName, setNetworkName] = useState('');
   
+  // Get network name when chainId changes
+  useEffect(() => {
+    if (chainId) {
+      // Get network name based on chain ID
+      let network;
+      switch (chainId) {
+        case 42220:
+          network = 'Celo Mainnet';
+          break;
+        case 44787:
+          network = 'Celo Alfajores Testnet';
+          break;
+        case 10:
+          network = 'Optimism';
+          break;
+        case 420:
+          network = 'Optimism Goerli Testnet';
+          break;
+        default:
+          network = `Unsupported Network (Chain ID: ${chainId})`;
+      }
+      console.log("Network Detection:", {
+        chainId,
+        networkName: network,
+        isSupported: [42220, 44787, 10, 420].includes(chainId)
+      });
+      setNetworkName(network);
+    }
+  }, [chainId]);
+
   // Get wallet address directly from localStorage or provider
   const [localWalletAddress, setLocalWalletAddress] = useState<string | null>(null);
   
@@ -38,30 +78,15 @@ const MintGreetingForm: React.FC = () => {
       }
       
       // Then check wagmi address
-      if (address) {
-        console.log("MintGreetingForm: Using wallet address from context:", address);
-        setLocalWalletAddress(address);
-        window.localStorage.setItem('walletAddress', address);
-        return;
-      }
-      
-      // Finally check window.ethereum
-      if (typeof window !== "undefined" && window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          if (accounts && accounts.length > 0) {
-            console.log("MintGreetingForm: Using wallet address from provider:", accounts[0]);
-            setLocalWalletAddress(accounts[0]);
-            window.localStorage.setItem('walletAddress', accounts[0]);
-          }
-        } catch (error) {
-          console.error("Error checking wallet connection:", error);
-        }
+      if (wagmiAddress) {
+        console.log("MintGreetingForm: Using wallet address from wagmi:", wagmiAddress);
+        setLocalWalletAddress(wagmiAddress);
+        window.localStorage.setItem('walletAddress', wagmiAddress);
       }
     };
     
     getWalletAddress();
-  }, [address]);
+  }, [wagmiAddress]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,37 +110,15 @@ const MintGreetingForm: React.FC = () => {
     }
     
     console.log('Minting greeting card with:', { recipient, message, festival, imageUrl });
-    console.log('Using wallet address:', localWalletAddress || address);
+    console.log('Using wallet address:', localWalletAddress || wagmiAddress);
     
     // Set local loading state
     setLocalLoading(true);
     
     try {
       // Check if we have a wallet address from any source
-      if (!localWalletAddress && !address) {
-        // Try one more time to get the wallet address
-        if (typeof window !== "undefined") {
-          // Check localStorage
-          const savedAddress = window.localStorage.getItem('walletAddress');
-          if (savedAddress) {
-            console.log("Form submission: Using wallet address from localStorage:", savedAddress);
-            setLocalWalletAddress(savedAddress);
-          } else if (window.ethereum) {
-            // Check provider
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            if (accounts && accounts.length > 0) {
-              console.log("Form submission: Using wallet address from provider:", accounts[0]);
-              setLocalWalletAddress(accounts[0]);
-              window.localStorage.setItem('walletAddress', accounts[0]);
-            } else {
-              throw new Error('Please connect your wallet first. Click the Connect Wallet button in the top right corner.');
-            }
-          } else {
-            throw new Error('Ethereum provider not detected. Please install MetaMask or another wallet.');
-          }
-        } else {
-          throw new Error('Please connect your wallet first. Click the Connect Wallet button in the top right corner.');
-        }
+      if (!localWalletAddress && !wagmiAddress) {
+        throw new Error('Please connect your wallet first. Click the Connect Wallet button in the top right corner.');
       }
       
       // Validate recipient address format
@@ -124,33 +127,11 @@ const MintGreetingForm: React.FC = () => {
       }
       
       // Use the wallet address we found
-      const effectiveAddress = localWalletAddress || address || window.localStorage.getItem('walletAddress');
+      const effectiveAddress = localWalletAddress || wagmiAddress;
       console.log("Proceeding with minting using address:", effectiveAddress);
       
-      // If we have an address in localStorage but not in context, force update the context
-      if (effectiveAddress && !address) {
+      if (effectiveAddress) {
         window.localStorage.setItem('walletAddress', effectiveAddress);
-      }
-      
-      // Check if we're on the correct network (Hardhat)
-      if (typeof window !== "undefined" && window.ethereum) {
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-        const currentChainId = parseInt(chainId, 16);
-        console.log("Current chain ID before minting:", currentChainId);
-        
-        if (currentChainId !== 31337) {
-          // Not on Hardhat network, try to switch
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x7A69' }], // 31337 in hex
-            });
-            console.log("Successfully switched to Hardhat network");
-          } catch (switchError: any) {
-            console.error("Failed to switch to Hardhat network:", switchError);
-            throw new Error('Please switch to the Hardhat network (Chain ID: 31337) in your wallet to mint greeting cards.');
-          }
-        }
       }
       
       // Call the mintGreetingCard function from useFestify context
@@ -158,7 +139,7 @@ const MintGreetingForm: React.FC = () => {
       
       console.log('Transaction receipt:', receipt);
       
-      // Reset form and show success message with transaction hash
+      // Reset form and show success message
       setSuccess(true);
       setStep(1);
       setRecipient('');
@@ -166,14 +147,12 @@ const MintGreetingForm: React.FC = () => {
       setFestival('');
       setImageUrl('');
       
-      // Clear success message after 8 seconds
       setTimeout(() => {
         setSuccess(false);
       }, 8000);
     } catch (error: any) {
       console.error('Error in form submission:', error);
       
-      // Handle specific error messages
       if (error.message.includes('insufficient funds')) {
         setError('Insufficient funds to pay for the mint fee. Please make sure you have enough ETH.');
       } else if (error.message.includes('user rejected')) {
@@ -211,6 +190,43 @@ const MintGreetingForm: React.FC = () => {
     setStep(step - 1);
   };
   
+  // Show supported networks in the UI
+  const renderSupportedNetworks = () => (
+    <div className="mt-4 p-4 bg-yellow-50 rounded-md">
+      <h3 className="text-sm font-medium text-yellow-800">Supported Networks:</h3>
+      <ul className="mt-2 text-sm text-yellow-700">
+        <li>• Celo Mainnet</li>
+        <li>• Celo Alfajores Testnet</li>
+        <li>• Optimism Mainnet</li>
+        <li>• Optimism Goerli Testnet</li>
+      </ul>
+    </div>
+  );
+
+  // Network warning banner
+  const NetworkWarning = () => {
+    if (!chainId) return null;
+    if (!isNetworkSupported(chainId)) {
+      return (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <h3 className="text-sm font-medium text-yellow-800">
+            Unsupported Network Detected
+          </h3>
+          <p className="mt-2 text-sm text-yellow-700">
+            You are currently on {getNetworkName(chainId)}. Please switch to one of our supported networks:
+          </p>
+          <ul className="mt-2 text-sm text-yellow-700 list-disc list-inside">
+            <li>Celo Mainnet</li>
+            <li>Celo Alfajores Testnet</li>
+            <li>Optimism</li>
+            <li>Optimism Goerli Testnet</li>
+          </ul>
+        </div>
+      );
+    }
+    return null;
+  };
+
   // Show success message
   if (success) {
     return (
@@ -221,14 +237,14 @@ const MintGreetingForm: React.FC = () => {
             Your festival greeting card has been minted and sent
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-center py-8">
+        <CardContent>
           <div className="text-green-500 mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
           <p className="text-lg font-medium">Your greeting card has been sent successfully!</p>
-          <p className="text-gray-500 mt-2">The recipient will be able to view it in their wallet.</p>
+          <p className="text-gray-500 mt-2">The recipient will be able to view it in their wallet on {networkName}.</p>
         </CardContent>
         <CardFooter>
           <Button title="Create Another Greeting" className="w-full" onClick={() => setSuccess(false)}>
@@ -248,6 +264,7 @@ const MintGreetingForm: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <NetworkWarning />
         <form onSubmit={handleSubmit}>
           {/* Step 1: Select Festival */}
           {step === 1 && (
@@ -261,6 +278,7 @@ const MintGreetingForm: React.FC = () => {
                 <p className="text-sm text-gray-500">
                   Select the festival for which you want to create a greeting card
                 </p>
+                {renderSupportedNetworks()}
               </div>
             </div>
           )}
@@ -320,14 +338,20 @@ const MintGreetingForm: React.FC = () => {
                 <p className="text-sm text-gray-500">
                   Write a personal message to be included in your greeting card
                 </p>
+                {networkName && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    You will be minting on {networkName}
+                  </p>
+                )}
               </div>
             </div>
           )}
           
           {/* Error message */}
           {error && (
-            <div className="mt-4 p-2 bg-red-50 text-red-500 text-sm rounded">
+            <div className="mt-4 p-4 bg-red-50 text-red-500 text-sm rounded">
               {error}
+              {!error.includes("supported network") && renderSupportedNetworks()}
             </div>
           )}
           

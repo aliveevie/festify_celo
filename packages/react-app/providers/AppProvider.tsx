@@ -8,7 +8,8 @@ import {
   connectorsForWallets,
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { hardhat, celo, alfajores, optimism, optimismGoerli, allChains } from '../providers/chains';
+import { celo, alfajores, optimism, optimismGoerli, allChains } from '../providers/chains';
+import { type Chain } from 'viem';
 
 import Layout from '../components/Layout';
 import { injectedWallet } from '@rainbow-me/rainbowkit/wallets';
@@ -27,12 +28,13 @@ const connectors = connectorsForWallets(
   }
 );
 
-// Fix the type issue by explicitly casting allChains to the required tuple type
+// Ensure we have at least one chain in the array
+const chains = [celo, ...allChains.filter(chain => chain.id !== celo.id)] as [Chain, ...Chain[]];
+
 const config = createConfig({
   connectors,
-  chains: [hardhat, ...allChains.slice(1)] as const,
+  chains,
   transports: {
-    [hardhat.id]: http(),
     [celo.id]: http(),
     [alfajores.id]: http(),
     [optimism.id]: http(),

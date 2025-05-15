@@ -1,28 +1,5 @@
 import { defineChain } from 'viem';
 
-// Hardhat local chain
-export const hardhat = defineChain({
-  id: 31337,
-  name: 'Hardhat',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Ether',
-    symbol: 'ETH',
-  },
-  rpcUrls: {
-    default: {
-      http: ['http://127.0.0.1:8545'],
-    },
-    public: {
-      http: ['http://127.0.0.1:8545'],
-    },
-  },
-  blockExplorers: {
-    default: { name: 'Hardhat Explorer', url: 'http://localhost:8545' },
-  },
-  testnet: true,
-});
-
 // Celo Mainnet
 export const celo = defineChain({
   id: 42220,
@@ -119,7 +96,6 @@ export const optimismGoerli = defineChain({
 
 // Export all chains as an array for easy access
 export const allChains = [
-  hardhat,
   celo,
   alfajores,
   optimism,

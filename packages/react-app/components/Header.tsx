@@ -6,13 +6,11 @@ import { useEffect, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { useFestify } from "@/contexts/useFestify";
-import ChainSelector from "./ChainSelector";
 
 export default function Header() {
   const [hideConnectBtn, setHideConnectBtn] = useState(false);
   const { connect } = useConnect();
   const { address } = useAccount();
-  const { getUserAddress } = useFestify();
 
   // Sync the wallet address with our context
   useEffect(() => {
@@ -20,9 +18,8 @@ export default function Header() {
       console.log("Header: Wallet connected with address:", address);
       // Force update the address in our context
       window.localStorage.setItem('walletAddress', address);
-      getUserAddress();
     }
-  }, [address, getUserAddress]);
+  }, [address]);
 
   useEffect(() => {
     if (window.ethereum && window.ethereum.isMiniPay) {
@@ -69,7 +66,6 @@ export default function Header() {
               </div>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
                 <div className="flex items-center space-x-4">
-                  <ChainSelector />
                   {!hideConnectBtn && (
                     <ConnectButton
                       showBalance={{

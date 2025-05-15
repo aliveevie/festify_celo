@@ -130,7 +130,6 @@ export const getIpfsGatewayForNetwork = (chainId: number): string => {
     42220: 'https://w3s.link/ipfs/', // Celo Mainnet - Storacha gateway
     44787: 'https://ipfs.io/ipfs/', // Celo Alfajores - IPFS.io gateway
     420: 'https://cloudflare-ipfs.com/ipfs/', // Optimism Goerli - Cloudflare gateway
-    31337: 'https://w3s.link/ipfs/', // Hardhat - Storacha gateway
   };
   
   return gatewayMap[chainId] || 'https://w3s.link/ipfs/';

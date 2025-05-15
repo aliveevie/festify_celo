@@ -49,9 +49,9 @@ export const initializeWeb3Storage = async (): Promise<boolean> => {
       console.log("Login successful, checking for payment plan");
       
       try {
-        // Wait for a payment plan (if needed)
-        await account.plan.wait(1000, 15 * 60 * 1000); // 1 second polling, 15 minute timeout
-        console.log("Payment plan confirmed");
+      // Wait for a payment plan (if needed)
+      await account.plan.wait(1000, 15 * 60 * 1000); // 1 second polling, 15 minute timeout
+      console.log("Payment plan confirmed");
       } catch (planError) {
         console.warn("Payment plan check timed out or failed:", planError);
         console.log("Continuing anyway as this might be a development environment");
@@ -64,16 +64,16 @@ export const initializeWeb3Storage = async (): Promise<boolean> => {
           space = spaces[0];
           console.log("Using existing space:", space.did());
         } else {
-          space = await client.createSpace("festival-greetings-nft", { account });
-          console.log("Created new space:", space.did());
+        space = await client.createSpace("festival-greetings-nft", { account });
+        console.log("Created new space:", space.did());
         }
         
         // Set as current space
         await client.setCurrentSpace(space.did());
         console.log("Set as current space");
-        
-        isAuthenticated = true;
-        return true;
+      
+      isAuthenticated = true;
+      return true;
       } catch (spaceError) {
         console.error("Error creating/setting space:", spaceError);
         
@@ -132,8 +132,8 @@ export const uploadToWeb3Storage = async (content: any): Promise<string> => {
       // Upload using the correct method from the Storacha API
       const uploadResult = await client.uploadFile(file);
       console.log("Successfully uploaded to Web3.Storage with CID:", uploadResult.toString());
-      
-      // Return the IPFS URL
+    
+    // Return the IPFS URL
       return `ipfs://${uploadResult.toString()}`;
     } catch (uploadError) {
       console.error("Error during upload:", uploadError);
@@ -149,7 +149,7 @@ export const uploadToWeb3Storage = async (content: any): Promise<string> => {
         if (typeof client.put === 'function') {
           const cid = await client.put([file]);
           console.log("Successfully uploaded using put with CID:", cid);
-          return `ipfs://${cid}`;
+    return `ipfs://${cid}`;
         }
       } catch (alternativeError) {
         console.error("Alternative upload methods failed:", alternativeError);
@@ -261,8 +261,8 @@ export const createAndUploadMetadata = async (
       // Create a File object from the metadata
       const metadataBlob = new Blob([JSON.stringify(metadata)], { type: "application/json" });
       const metadataFile = new File([metadataBlob], "metadata.json", { type: "application/json" });
-      
-      // Upload metadata to Web3.Storage
+    
+    // Upload metadata to Web3.Storage
       const uploadResult = await client.uploadFile(metadataFile);
       const metadataCid = uploadResult.toString();
       console.log("Metadata uploaded to Web3.Storage with CID:", metadataCid);
