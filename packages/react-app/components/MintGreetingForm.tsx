@@ -230,7 +230,7 @@ const MintGreetingForm: React.FC = () => {
   // Show success message
   if (success) {
     return (
-      <Card>
+      <Card className="max-w-lg mx-auto mt-8 animate-fade-in">
         <CardHeader>
           <CardTitle>Success!</CardTitle>
           <CardDescription>
@@ -238,13 +238,15 @@ const MintGreetingForm: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-green-500 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+          <div className="flex flex-col items-center py-8">
+            <div className="text-green-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-lg font-semibold text-green-700">Your greeting card has been sent successfully!</p>
+            <p className="text-gray-500 mt-2">The recipient will be able to view it in their wallet on {networkName}.</p>
           </div>
-          <p className="text-lg font-medium">Your greeting card has been sent successfully!</p>
-          <p className="text-gray-500 mt-2">The recipient will be able to view it in their wallet on {networkName}.</p>
         </CardContent>
         <CardFooter>
           <Button title="Create Another Greeting" className="w-full" onClick={() => setSuccess(false)}>
@@ -255,8 +257,22 @@ const MintGreetingForm: React.FC = () => {
     );
   }
 
+  // Stepper UI
+  const Stepper = () => (
+    <div className="flex justify-center mb-8">
+      {[1, 2, 3].map((s) => (
+        <div
+          key={s}
+          className={`w-8 h-2 mx-1 rounded-full transition-all duration-300 ${
+            step === s ? 'bg-primary-700 w-12' : 'bg-gray-200'
+          }`}
+        />
+      ))}
+    </div>
+  );
+
   return (
-    <Card>
+    <Card className="max-w-lg mx-auto mt-8 animate-fade-in">
       <CardHeader>
         <CardTitle>Create a Festival Greeting</CardTitle>
         <CardDescription>
@@ -264,17 +280,16 @@ const MintGreetingForm: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <NetworkWarning />
-        <form onSubmit={handleSubmit}>
+        <Stepper />
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Step 1: Select Festival */}
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <FestivalSelector
                 selectedFestival={festival}
                 onSelectFestival={setFestival}
               />
-              
-              <div className="pt-4">
+              <div className="pt-2">
                 <p className="text-sm text-gray-500">
                   Select the festival for which you want to create a greeting card
                 </p>
@@ -282,10 +297,9 @@ const MintGreetingForm: React.FC = () => {
               </div>
             </div>
           )}
-          
           {/* Step 2: Enter Recipient */}
           {step === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="recipient" className="text-sm font-medium">
                   Recipient Address
@@ -295,12 +309,12 @@ const MintGreetingForm: React.FC = () => {
                   placeholder="0x..."
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
+                  className="bg-gray-50 border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                 />
                 <p className="text-xs text-gray-500">
                   Enter the Ethereum address of the recipient
                 </p>
               </div>
-              
               <div className="space-y-2">
                 <label htmlFor="image-url" className="text-sm font-medium">
                   Image URL (Optional)
@@ -310,6 +324,7 @@ const MintGreetingForm: React.FC = () => {
                   placeholder="https://..."
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
+                  className="bg-gray-50 border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                 />
                 <p className="text-xs text-gray-500">
                   Optionally provide a custom image URL for your greeting card
@@ -317,10 +332,9 @@ const MintGreetingForm: React.FC = () => {
               </div>
             </div>
           )}
-          
           {/* Step 3: Enter Message */}
           {step === 3 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="message" className="text-sm font-medium">
                   Your Message
@@ -331,10 +345,10 @@ const MintGreetingForm: React.FC = () => {
                   rows={5}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
+                  className="bg-gray-50 border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                 />
               </div>
-              
-              <div className="pt-4">
+              <div className="pt-2">
                 <p className="text-sm text-gray-500">
                   Write a personal message to be included in your greeting card
                 </p>
@@ -346,17 +360,15 @@ const MintGreetingForm: React.FC = () => {
               </div>
             </div>
           )}
-          
           {/* Error message */}
           {error && (
-            <div className="mt-4 p-4 bg-red-50 text-red-500 text-sm rounded">
+            <div className="mt-4 p-4 bg-red-50 text-red-500 text-sm rounded-lg border border-red-200">
               {error}
               {!error.includes("supported network") && renderSupportedNetworks()}
             </div>
           )}
-          
           {/* Navigation buttons */}
-          <div className="flex justify-between mt-6">
+          <div className="flex justify-between mt-8">
             {step > 1 ? (
               <Button type="button" title="Back" variant="outline" onClick={handlePrevStep}>
                 Back
@@ -364,21 +376,13 @@ const MintGreetingForm: React.FC = () => {
             ) : (
               <div></div>
             )}
-            
             {step < 3 ? (
               <Button type="button" title="Next" onClick={handleNextStep}>
                 Next
               </Button>
             ) : (
-              <Button type="submit" title="Mint Greeting Card" disabled={isLoading || localLoading} onClick={() => {}}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Minting...
-                  </>
-                ) : (
-                  'Mint Greeting Card'
-                )}
+              <Button type="submit" title="Mint Greeting Card" disabled={isLoading || localLoading} loading={isLoading || localLoading} onClick={() => {}}>
+                Mint Greeting Card
               </Button>
             )}
           </div>
