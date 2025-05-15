@@ -10,6 +10,7 @@ import {
   PublicClient,
   GetContractReturnType,
   Chain,
+  encodeFunctionData,
 } from "viem";
 import { useAccount, usePublicClient, useWalletClient, useChainId } from "wagmi";
 import { allChains } from "../providers/chains";
@@ -17,6 +18,7 @@ import { generateGreetingCardSVG } from "../utils/cardGenerator";
 import { utf8ToBase64, parseBase64Metadata } from "../utils/base64Utils";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
 import { initializeWeb3Storage, createAndUploadMetadata } from "../utils/web3Storage";
+import { getDataSuffix, submitReferral } from '@divvi/referral-sdk';
 
 // Define supported networks
 export const SUPPORTED_NETWORKS = {
@@ -245,17 +247,42 @@ export const useFestify = () => {
 
       const mintFee = parseEther("0.01");
       const formattedAddress = address as `0x${string}`;
-      const tx = await walletClient.writeContract({
+
+      // Get Divvi data suffix for referral tracking
+      const dataSuffix = getDataSuffix({
+        consumer: '0x4eA48e01F1314Db0925653e30617B254D1cf5366', // Your Divvi Identifier
+        providers: [
+          '0x5f0a55FaD9424ac99429f635dfb9bF20c3360Ab8',
+          '0x6226ddE08402642964f9A6de844ea3116F0dFc7e',
+          '0x0423189886D7966f0DD7E7d256898DAeEE625dca'
+        ],
+      });
+
+      // First prepare the contract call
+      const contract = getContract({
         address: contractAddress as `0x${string}`,
         abi: FestifyABI.abi,
-        functionName: "mintGreetingCard",
-        account: formattedAddress,
-        args: [recipient as `0x${string}`, metadataUri, festival],
-        value: mintFee,
+        client: walletClient,
       });
+
+      // Execute transaction with Divvi data suffix
+      const tx = await contract.write.mintGreetingCard(
+        [recipient as `0x${string}`, metadataUri, festival],
+        {
+          account: formattedAddress,
+          value: mintFee,
+          dataSuffix,
+        }
+      );
 
       if (!publicClient) throw new Error("Failed to initialize public client");
       const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Submit referral to Divvi
+      await submitReferral({
+        txHash: tx,
+        chainId,
+      });
       
       // Refresh the greetings list after minting
       await refreshGreetings();
