@@ -68,6 +68,124 @@ export const useFestify = () => {
     return CONTRACT_ADDRESSES[chainId] || "";
   }, [chainId, isNetworkSupported]);
 
+  // Fetch greeting cards (sent/received)
+  const fetchGreetingCards = useCallback(async () => {
+    if (!address || !chainId || !publicClient) return;
+    setIsLoading(true);
+    try {
+      const contractAddress = getContractAddress();
+      console.log("contractAddress", contractAddress);
+      if (!contractAddress) {
+        setSentGreetings([]);
+        setReceivedGreetings([]);
+        return;
+      }
+
+      const contract = getContract({
+        address: contractAddress as `0x${string}`,
+        abi: FestifyABI.abi,
+        client: publicClient,
+      });
+
+      // Sent
+      let sentTokensResult: bigint[] = [];
+      try {
+        const result = await contract.read.getSentGreetings([address as `0x${string}`]);
+        if (Array.isArray(result)) {
+          sentTokensResult = result as bigint[];
+          console.log("Sent greetings found:", sentTokensResult.length);
+        }
+      } catch (error) {
+        console.error("Error fetching sent greetings:", error);
+        sentTokensResult = [];
+      }
+
+      // Received
+      let receivedTokensResult: bigint[] = [];
+      try {
+        const result = await contract.read.getReceivedGreetings([address as `0x${string}`]);
+        if (Array.isArray(result)) {
+          receivedTokensResult = result as bigint[];
+          console.log("Received greetings found:", receivedTokensResult.length);
+        }
+      } catch (error) {
+        console.error("Error fetching received greetings:", error);
+        receivedTokensResult = [];
+      }
+
+      // Sent details
+      const sentTokenDetails = await Promise.all(
+        sentTokensResult.map(async (tokenId) => {
+          try {
+            const [tokenURI, festival, recipient] = await Promise.all([
+              contract.read.tokenURI([tokenId]),
+              contract.read.getGreetingFestival([tokenId]),
+              contract.read.ownerOf([tokenId])
+            ]);
+
+            const metadata = parseBase64Metadata(tokenURI as string);
+            return {
+              tokenId: tokenId.toString(),
+              tokenURI: tokenURI as string,
+              festival: festival as string,
+              recipient: recipient as string,
+              metadata
+            };
+          } catch (error) {
+            console.error(`Error fetching details for sent token ${tokenId}:`, error);
+            return null;
+          }
+        })
+      );
+
+      // Received details
+      const receivedTokenDetails = await Promise.all(
+        receivedTokensResult.map(async (tokenId) => {
+          try {
+            const [tokenURI, festival, sender] = await Promise.all([
+              contract.read.tokenURI([tokenId]),
+              contract.read.getGreetingFestival([tokenId]),
+              contract.read.getGreetingSender([tokenId])
+            ]);
+
+            const metadata = parseBase64Metadata(tokenURI as string);
+            return {
+              tokenId: tokenId.toString(),
+              tokenURI: tokenURI as string,
+              festival: festival as string,
+              sender: sender as string,
+              metadata
+            };
+          } catch (error) {
+            console.error(`Error fetching details for received token ${tokenId}:`, error);
+            return null;
+          }
+        })
+      );
+
+      const validSentDetails = sentTokenDetails.filter((item): item is NonNullable<typeof item> => item !== null);
+      const validReceivedDetails = receivedTokenDetails.filter((item): item is NonNullable<typeof item> => item !== null);
+
+      console.log("Setting sent greetings:", validSentDetails.length);
+      console.log("Setting received greetings:", validReceivedDetails.length);
+
+      setSentGreetings(validSentDetails);
+      setReceivedGreetings(validReceivedDetails);
+    } catch (error) {
+      console.error("Error in fetchGreetingCards:", error);
+      setSentGreetings([]);
+      setReceivedGreetings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, chainId, publicClient, getContractAddress]);
+
+  // Auto-refresh greetings when a new one is minted
+  const refreshGreetings = useCallback(async () => {
+    console.log("Refreshing greetings...");
+    await fetchGreetingCards();
+  }, [fetchGreetingCards]);
+
   // Mint a new greeting card
   const mintGreetingCard = async (
     recipient: string,
@@ -138,7 +256,10 @@ export const useFestify = () => {
 
       if (!publicClient) throw new Error("Failed to initialize public client");
       const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
-      await fetchGreetingCards();
+      
+      // Refresh the greetings list after minting
+      await refreshGreetings();
+      
       return receipt;
     } catch (error) {
       setIsLoading(false);
@@ -147,67 +268,6 @@ export const useFestify = () => {
       setIsLoading(false);
     }
   };
-
-  // Fetch greeting cards (sent/received)
-  const fetchGreetingCards = useCallback(async () => {
-    if (!address || !chainId || !publicClient) return;
-    setIsLoading(true);
-    try {
-      const contractAddress = getContractAddress();
-      if (!contractAddress) {
-        setSentGreetings([]);
-        setReceivedGreetings([]);
-        return;
-      }
-
-      const contract = getContract({
-        address: contractAddress as `0x${string}`,
-        abi: FestifyABI.abi,
-        publicClient,
-      }) as FestifyContract;
-
-      // Sent
-      let sentTokensResult: bigint[] = [];
-      try {
-        sentTokensResult = await contract.read.getSentGreetings([address as `0x${string}`]);
-      } catch { sentTokensResult = []; }
-
-      // Received
-      let receivedTokensResult: bigint[] = [];
-      try {
-        receivedTokensResult = await contract.read.getReceivedGreetings([address as `0x${string}`]);
-      } catch { receivedTokensResult = []; }
-
-      // Sent details
-      const sentTokenDetails = await Promise.all(
-        sentTokensResult.map(async (tokenId) => {
-          let tokenURI = "", festival = "", recipient = "";
-          try { tokenURI = String(await contract.read.tokenURI([tokenId])); } catch {}
-          try { festival = String(await contract.read.getGreetingFestival([tokenId])); } catch {}
-          try { recipient = String(await contract.read.ownerOf([tokenId])); } catch {}
-          const metadata = parseBase64Metadata(tokenURI);
-          return { tokenId: tokenId.toString(), tokenURI, festival, recipient, metadata };
-        })
-      );
-
-      // Received details
-      const receivedTokenDetails = await Promise.all(
-        receivedTokensResult.map(async (tokenId) => {
-          let tokenURI = "", festival = "", sender = "";
-          try { tokenURI = String(await contract.read.tokenURI([tokenId])); } catch {}
-          try { festival = String(await contract.read.getGreetingFestival([tokenId])); } catch {}
-          try { sender = String(await contract.read.getGreetingSender([tokenId])); } catch {}
-          const metadata = parseBase64Metadata(tokenURI);
-          return { tokenId: tokenId.toString(), tokenURI, festival, sender, metadata };
-        })
-      );
-
-      setSentGreetings(sentTokenDetails.filter(Boolean));
-      setReceivedGreetings(receivedTokenDetails.filter(Boolean));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [address, chainId, publicClient, getContractAddress]);
 
   // Fetch on mount and when address/chain changes
   useEffect(() => {
