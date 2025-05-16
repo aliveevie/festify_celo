@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     // Initialize and configure the verifier
     const selfBackendVerifier = new SelfBackendVerifier(
       'festify-app-scope',
-      'https://3f48-197-210-156-242.ngrok-free.app/api/verify'
+      'https://festify.vercel.app/'
     );
 
     // Verify the proof
