@@ -8,6 +8,9 @@ import MintGreetingForm from "@/components/MintGreetingForm";
 import GreetingStats from "@/components/GreetingStats";
 import GreetingCardGallery from "@/components/GreetingCardGallery";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { SelfVerification } from "@/components/SelfVerification";
+import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
@@ -19,6 +22,8 @@ export default function Home() {
     } = useFestify();
 
     const [isClient, setIsClient] = useState(false);
+    const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+    const [isVerified, setIsVerified] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
@@ -30,6 +35,11 @@ export default function Home() {
         }
     }, [address]);
 
+    const handleVerificationSuccess = () => {
+        setIsVerified(true);
+        setIsVerificationOpen(false);
+    };
+
     return (
         <main className="flex min-h-screen flex-col items-center justify-between p-4 md:p-8 bg-transparent">
             <Container>
@@ -38,7 +48,25 @@ export default function Home() {
                     {/* HERO: Welcome Panel at the very top */}
                     <div className="w-full mb-10">
                       <div className="rounded-2xl bg-gradient-to-br from-[#7F5AF0] to-[#2CB67D] text-white shadow-xl p-10 animate-fade-in w-full text-center">
-                        <h1 className="text-3xl md:text-4xl font-extrabold mb-4">Welcome to Festify!</h1>
+                        <div className="flex justify-between items-center mb-4">
+                          <h1 className="text-3xl md:text-4xl font-extrabold">Welcome to Festify!</h1>
+                          {address && (
+                            <Button
+                              variant="outline"
+                              className="bg-white text-purple-600 hover:bg-gray-100"
+                              onClick={() => setIsVerificationOpen(true)}
+                            >
+                              {isVerified ? (
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                  <span>Verified</span>
+                                </div>
+                              ) : (
+                                "Verify Identity"
+                              )}
+                            </Button>
+                          )}
+                        </div>
                         <p className="text-lg md:text-xl opacity-95 max-w-2xl mx-auto">
                           Create and send personalized festival greeting cards as NFTs to your loved ones. Choose from different festivals, add your message, and mint your unique greeting card.
                         </p>
@@ -95,6 +123,11 @@ export default function Home() {
                   </>
                 )}
             </Container>
+            <SelfVerification 
+                isOpen={isVerificationOpen}
+                onClose={() => setIsVerificationOpen(false)}
+                onVerificationSuccess={handleVerificationSuccess}
+            />
         </main>
     );
 }
