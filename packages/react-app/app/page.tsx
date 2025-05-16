@@ -48,28 +48,35 @@ export default function Home() {
                     {/* HERO: Welcome Panel at the very top */}
                     <div className="w-full mb-10">
                       <div className="rounded-2xl bg-gradient-to-br from-[#7F5AF0] to-[#2CB67D] text-white shadow-xl p-10 animate-fade-in w-full text-center">
-                        <div className="flex justify-between items-center mb-4">
-                          <h1 className="text-3xl md:text-4xl font-extrabold">Welcome to Festify!</h1>
-                          {address && (
-                            <Button
-                              variant="outline"
-                              className="bg-white text-purple-600 hover:bg-gray-100"
-                              onClick={() => setIsVerificationOpen(true)}
-                            >
-                              {isVerified ? (
-                                <div className="flex items-center gap-2">
-                                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                  <span>Verified</span>
-                                </div>
-                              ) : (
-                                "Verify Identity"
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                        <p className="text-lg md:text-xl opacity-95 max-w-2xl mx-auto">
+                        <h1 className="text-3xl md:text-4xl font-extrabold mb-4">Welcome to Festify!</h1>
+                        <p className="text-lg md:text-xl opacity-95 max-w-2xl mx-auto mb-6">
                           Create and send personalized festival greeting cards as NFTs to your loved ones. Choose from different festivals, add your message, and mint your unique greeting card.
                         </p>
+                        {/* Verification Section */}
+                        {address && (
+                          <div className="bg-white/10 rounded-xl p-6 mt-4 flex flex-col items-center max-w-lg mx-auto shadow-md">
+                            <h2 className="text-xl font-semibold mb-2 text-white">Why Get Verified?</h2>
+                            <ul className="text-base text-white/90 mb-4 list-disc list-inside text-left">
+                              <li>Unlock exclusive features and benefits</li>
+                              <li>Prove your identity for a safer experience</li>
+                              <li>Stand out as a trusted community member</li>
+                            </ul>
+                            {isVerified ? (
+                              <div className="flex items-center gap-2 mt-2">
+                                <CheckCircle2 className="h-6 w-6 text-green-400" />
+                                <span className="text-green-100 font-semibold">Verified</span>
+                              </div>
+                            ) : (
+                              <Button
+                                className="bg-purple-600 text-white hover:bg-purple-700 font-bold px-6 py-2 rounded-lg shadow transition-colors"
+                                title="Get Verified with Self"
+                                onClick={() => setIsVerificationOpen(true)}
+                              >
+                                Get Verified with Self
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {/* View Cards Panel */}

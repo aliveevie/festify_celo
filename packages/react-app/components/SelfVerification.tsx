@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import SelfQRcodeWrapper, { SelfAppBuilder } from '@selfxyz/qrcode';
 import { v4 as uuidv4 } from 'uuid';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CheckCircle2 } from "lucide-react";
 
 interface SelfVerificationProps {
@@ -15,6 +14,15 @@ interface SelfVerificationProps {
 export function SelfVerification({ isOpen, onClose, onVerificationSuccess }: SelfVerificationProps) {
   const [userId, setUserId] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [SelfQRcodeWrapper, setSelfQRcodeWrapper] = useState<React.ComponentType<any> | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      import('@selfxyz/qrcode').then(mod => {
+        setSelfQRcodeWrapper(() => mod.default);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -24,12 +32,12 @@ export function SelfVerification({ isOpen, onClose, onVerificationSuccess }: Sel
 
   if (!userId) return null;
 
-  const selfApp = new SelfAppBuilder({
+  const selfApp = {
     appName: "Festify",
     scope: "festify-app-scope",
     endpoint: "https://3f48-197-210-156-242.ngrok-free.app/api/verify",
     userId,
-  }).build();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -37,20 +45,24 @@ export function SelfVerification({ isOpen, onClose, onVerificationSuccess }: Sel
         <DialogHeader>
           <DialogTitle>Verify Your Identity</DialogTitle>
         </DialogHeader>
+        <DialogDescription>
+          Scan this QR code with the Self app to verify your identity and unlock additional benefits.
+        </DialogDescription>
         <div className="flex flex-col items-center space-y-4 py-4">
           {!isVerified ? (
             <>
-              <p className="text-sm text-gray-500 text-center">
-                Scan this QR code with the Self app to verify your identity and unlock additional benefits
-              </p>
-              <SelfQRcodeWrapper
-                selfApp={selfApp}
-                onSuccess={() => {
-                  setIsVerified(true);
-                  onVerificationSuccess();
-                }}
-                size={250}
-              />
+              {SelfQRcodeWrapper ? (
+                <SelfQRcodeWrapper
+                  selfApp={selfApp}
+                  onSuccess={() => {
+                    setIsVerified(true);
+                    onVerificationSuccess();
+                  }}
+                  size={250}
+                />
+              ) : (
+                <div>Loading QR code...</div>
+              )}
             </>
           ) : (
             <div className="flex flex-col items-center space-y-2">
