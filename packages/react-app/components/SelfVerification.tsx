@@ -35,7 +35,7 @@ export function SelfVerification({ isOpen, onClose, onVerificationSuccess }: Sel
   const selfApp = {
     appName: "Festify",
     scope: "festify-app-scope",
-    endpoint: "https://3f48-197-210-156-242.ngrok-free.app/api/verify",
+    endpoint: "https://festify.vercel.app/api/verify",
     userId,
   };
 
