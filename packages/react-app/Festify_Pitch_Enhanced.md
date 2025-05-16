@@ -304,7 +304,7 @@ To become the global standard for digital celebration, enabling every festival, 
         <span style="background-color:#6366F1; color:white; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:10px;">💻</span>
         <h3 style="color:#4F46E5; margin:0;">Technology</h3>
       </div>
-      <p>Continuously innovate with new features, AR/VR experiences, and cross-chain compatibility.</p>
+      <p>Continuously innovate with new features, AR/VR experiences, and cross-chain compatibility for Celo, Optimism, and other networks.</p>
     </div>
   </div>
   
@@ -319,4 +319,220 @@ To become the global standard for digital celebration, enabling every festival, 
   </div>
 </div>
 
+</div>
+
+---
+
+<div style="background-color:#EEF2FF; padding:20px; border-radius:8px; border-left:5px solid #6366F1; margin:20px 0;">
+
+## <span style="color:#4F46E5;">Monetization</span>
+
+<div style="display:flex; flex-wrap:wrap; gap:15px; margin:15px 0;">
+  <div style="flex:1; min-width:200px; background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+    <div style="display:flex; align-items:center; margin-bottom:10px;">
+      <div style="background-color:#EEF2FF; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        <span style="font-size:1.2em; color:#6366F1;">💰</span>
+      </div>
+      <h3 style="color:#6366F1; margin:0;">NFT Minting Fees</h3>
+    </div>
+    <p>Charge a small fee for minting personalized greeting cards as NFTs.</p>
+  </div>
+  
+  <div style="flex:1; min-width:200px; background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+    <div style="display:flex; align-items:center; margin-bottom:10px;">
+      <div style="background-color:#EEF2FF; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        <span style="font-size:1.2em; color:#6366F1;">💳</span>
+      </div>
+      <h3 style="color:#6366F1; margin:0;">Marketplace Commissions</h3>
+    </div>
+    <p>Earn a percentage from secondary sales and trades of festival cards.</p>
+  </div>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:15px; margin:15px 0;">
+  <div style="flex:1; min-width:200px; background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+    <div style="display:flex; align-items:center; margin-bottom:10px;">
+      <div style="background-color:#EEF2FF; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        <span style="font-size:1.2em; color:#6366F1;">✨</span>
+      </div>
+      <h3 style="color:#6366F1; margin:0;">Premium Features</h3>
+    </div>
+    <p>Offer subscription plans for advanced customization, analytics, and exclusive festival drops.</p>
+  </div>
+  
+  <div style="flex:1; min-width:200px; background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+    <div style="display:flex; align-items:center; margin-bottom:10px;">
+      <div style="background-color:#EEF2FF; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        <span style="font-size:1.2em; color:#6366F1;">🎁</span>
+      </div>
+      <h3 style="color:#6366F1; margin:0;">Brand Collaborations</h3>
+    </div>
+    <p>Partner with brands for sponsored cards, festival campaigns, and in-app promotions.</p>
+  </div>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:15px; margin:15px 0;">
+  <div style="flex:1; min-width:200px; background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+    <div style="display:flex; align-items:center; margin-bottom:10px;">
+      <div style="background-color:#EEF2FF; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        <span style="font-size:1.2em; color:#6366F1;">🎉</span>
+      </div>
+      <h3 style="color:#6366F1; margin:0;">Event Integrations</h3>
+    </div>
+    <p>Offer white-label solutions for event organizers and brands.</p>
+  </div>
+</div>
+
+</div>
+
+---
+
+<div style="background-color:#EEF2FF; padding:20px; border-radius:8px; border-left:5px solid #6366F1; margin:20px 0;">
+
+## <span style="color:#4F46E5;">Roadmap</span>
+
+<div style="position:relative; margin:30px 0;">
+  <!-- Timeline line -->
+  <div style="position:absolute; top:0; bottom:0; left:20px; width:2px; background-color:#6366F1;"></div>
+  
+  <!-- Timeline items -->
+  <div style="margin-left:40px; margin-bottom:30px; position:relative;">
+    <!-- Dot -->
+    <div style="position:absolute; left:-48px; top:0; width:16px; height:16px; border-radius:50%; background-color:#6366F1;"></div>
+    <!-- Content -->
+    <div style="background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="color:#6366F1; margin:0;">Q3 2024</h3>
+        <span style="background-color:#6366F1; color:white; padding:3px 8px; border-radius:12px; font-size:0.8em;">Launch Phase</span>
+      </div>
+      <p>Launch MVP, onboard first artists and festival partners, open beta.</p>
+    </div>
+  </div>
+  
+  <div style="margin-left:40px; margin-bottom:30px; position:relative;">
+    <div style="position:absolute; left:-48px; top:0; width:16px; height:16px; border-radius:50%; background-color:#6366F1;"></div>
+    <div style="background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="color:#6366F1; margin:0;">Q4 2024</h3>
+        <span style="background-color:#6366F1; color:white; padding:3px 8px; border-radius:12px; font-size:0.8em;">Growth Phase</span>
+      </div>
+      <p>Marketplace launch, premium features, first brand collaborations.</p>
+    </div>
+  </div>
+  
+  <div style="margin-left:40px; margin-bottom:30px; position:relative;">
+    <div style="position:absolute; left:-48px; top:0; width:16px; height:16px; border-radius:50%; background-color:#6366F1;"></div>
+    <div style="background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="color:#6366F1; margin:0;">Q1 2025</h3>
+        <span style="background-color:#6366F1; color:white; padding:3px 8px; border-radius:12px; font-size:0.8em;">Innovation Phase</span>
+      </div>
+      <p>AR/VR greeting experiences, mobile app, global festival campaigns.</p>
+    </div>
+  </div>
+  
+  <div style="margin-left:40px; margin-bottom:30px; position:relative;">
+    <div style="position:absolute; left:-48px; top:0; width:16px; height:16px; border-radius:50%; background-color:#6366F1;"></div>
+    <div style="background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="color:#6366F1; margin:0;">Q2 2025</h3>
+        <span style="background-color:#6366F1; color:white; padding:3px 8px; border-radius:12px; font-size:0.8em;">Expansion Phase</span>
+      </div>
+      <p>Cross-chain support for Celo and Optimism networks, advanced analytics, community governance.</p>
+    </div>
+  </div>
+  
+  <div style="margin-left:40px; margin-bottom:30px; position:relative;">
+    <div style="position:absolute; left:-48px; top:0; width:16px; height:16px; border-radius:50%; background-color:#6366F1;"></div>
+    <div style="background-color:#F3F4F6; padding:15px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="color:#6366F1; margin:0;">Beyond</h3>
+        <span style="background-color:#6366F1; color:white; padding:3px 8px; border-radius:12px; font-size:0.8em;">Global Phase</span>
+      </div>
+      <p>Expand to new markets, continuous innovation, and ecosystem growth.</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+---
+
+<div style="background-color:#EEF2FF; padding:20px; border-radius:8px; border-left:5px solid #6366F1; margin:20px 0;">
+
+## <span style="color:#4F46E5;">Closing & Call to Action</span>
+
+<div style="background-color:#F8FAFC; padding:20px; border-radius:8px; margin:15px 0; text-align:center;">
+  <p style="font-size:1.2em; color:#4B5563; font-style:italic; margin-bottom:20px;">
+    <strong>Festify</strong> is not just a platform—it's a movement to make every celebration last forever. Join us as we redefine how the world connects, celebrates, and remembers.
+  </p>
+  
+  <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:20px; margin:30px 0;">
+    <div style="background-color:#EEF2FF; padding:15px; border-radius:6px; width:250px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="background-color:#6366F1; color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+        <span style="font-size:1.5em;">👤</span>
+      </div>
+      <h3 style="color:#4F46E5; margin:10px 0;">For Users</h3>
+      <p>Start creating, sending, and collecting festival greetings today.</p>
+    </div>
+    
+    <div style="background-color:#EEF2FF; padding:15px; border-radius:6px; width:250px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="background-color:#6366F1; color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+        <span style="font-size:1.5em;">🎨</span>
+      </div>
+      <h3 style="color:#4F46E5; margin:10px 0;">For Artists & Brands</h3>
+      <p>Partner with us to launch your own digital festival experiences.</p>
+    </div>
+    
+    <div style="background-color:#EEF2FF; padding:15px; border-radius:6px; width:250px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+      <div style="background-color:#6366F1; color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+        <span style="font-size:1.5em;">💸</span>
+      </div>
+      <h3 style="color:#4F46E5; margin:10px 0;">For Investors</h3>
+      <p>Be part of the next wave of digital celebration and ownership.</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+---
+
+<div style="background-color:#EEF2FF; padding:20px; border-radius:8px; border-left:5px solid #6366F1; margin:20px 0;">
+
+## <span style="color:#4F46E5;">Meet the Founder</span>
+
+<div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center; margin:15px 0;">
+  <div style="flex:0 0 auto; width:100px; height:100px; background-color:#6366F1; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+    <span style="font-size:2em; color:white;">👨‍💻</span>
+  </div>
+  
+  <div style="flex:1;">
+    <h3 style="color:#4F46E5; margin:0 0 10px;">Ibrahim Abdulkarim</h3>
+    <p style="font-style:italic; color:#4B5563; margin:0 0 15px;">Visionary founder passionate about digital culture, blockchain, and global celebrations.</p>
+    
+    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+      <a href="https://twitter.com/iabdulkarim472" style="display:inline-flex; align-items:center; text-decoration:none; color:#4F46E5; background-color:#F3F4F6; padding:5px 10px; border-radius:4px;">
+        <span style="margin-right:5px;">🐦</span> @iabdulkarim472
+      </a>
+      
+      <a href="https://t.me/ibrahim_193" style="display:inline-flex; align-items:center; text-decoration:none; color:#4F46E5; background-color:#F3F4F6; padding:5px 10px; border-radius:4px;">
+        <span style="margin-right:5px;">💬</span> @ibrahim_193
+      </a>
+      
+      <a href="https://festify.vercel.app/" style="display:inline-flex; align-items:center; text-decoration:none; color:#4F46E5; background-color:#F3F4F6; padding:5px 10px; border-radius:4px;">
+        <span style="margin-right:5px;">🌐</span> festify.vercel.app
+      </a>
+    </div>
+  </div>
+</div>
+
+</div>
+
+---
+
+<div style="background-color:#6366F1; color:white; padding:20px; border-radius:8px; text-align:center; margin:20px 0;">
+  <p style="font-size:1.2em; font-weight:bold; margin:0;">
+    <span style="margin-right:10px;">🎉</span> <strong>Festify</strong> — Send Festival Greetings as NFTs. Celebrate. Connect. Collect. <span style="margin-left:10px;">🎉</span>
+  </p>
 </div>
